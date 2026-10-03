@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Environment Variables & Secrets (CRITICAL: DO NOT COMMIT REAL KEYS)
+.env
+.env.*
+!.env.example
+*.env
+server/.env
+client/.env
+
+# Production Build Outputs
+dist/
+build/
+client/dist/
+
+# SQLite Database & Cache
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+server/skyrovix.db
+server/skyrovix.db-journal
+
+# Logs & Debugging
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
