@@ -5,7 +5,9 @@ import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = path.join(__dirname, 'skyrovix.db');
+const dbPath = process.env.VERCEL || (process.env.NODE_ENV === 'production' && process.env.AWS_LAMBDA_FUNCTION_NAME)
+  ? path.join('/tmp', 'skyrovix.db')
+  : path.join(__dirname, 'skyrovix.db');
 
 sqlite3.verbose();
 

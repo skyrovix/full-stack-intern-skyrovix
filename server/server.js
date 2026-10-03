@@ -3626,7 +3626,7 @@ initDb()
     if (isSupabaseConfigured()) {
       await pullFromSupabase(dbRun);
     }
-    if (process.env.NODE_ENV !== 'test') {
+    if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
       app.listen(PORT, () => {
         console.log(`🚀 Skyrovix Batch 1 API server listening on http://localhost:${PORT}`);
         console.log(`🔒 Cashfree Gateway Configured: ${isCashfreeConfigured() ? 'YES (' + (process.env.CASHFREE_ENVIRONMENT || 'sandbox') + ')' : 'NO (Sandbox Developer Simulation Active)'}`);
