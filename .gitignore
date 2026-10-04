@@ -20,7 +20,7 @@ client/dist/
 *.db-journal
 *.sqlite
 *.sqlite3
-server/skyrovix.db
+!server/skyrovix.db
 server/skyrovix.db-journal
 
 # Logs & Debugging

@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "client/dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{node_modules/sqlite3/**,server/skyrovix.db,server/**}"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",

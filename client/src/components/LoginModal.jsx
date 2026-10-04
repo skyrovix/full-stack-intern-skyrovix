@@ -57,11 +57,16 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
         body: JSON.stringify({ email: email.trim(), password })
       });
 
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.warn('Response JSON parse error:', parseErr);
+      }
       setLoading(false);
 
       if (!res.ok) {
-        setError(data.error || 'Invalid credentials. Please verify your email and password.');
+        setError(data.error || data.message || `Server returned error (${res.status}). Please verify credentials and try again.`);
         return;
       }
 

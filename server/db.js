@@ -1,3 +1,4 @@
+import fs from 'fs';
 import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -5,9 +6,23 @@ import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const dbPath = process.env.VERCEL || (process.env.NODE_ENV === 'production' && process.env.AWS_LAMBDA_FUNCTION_NAME)
-  ? path.join('/tmp', 'skyrovix.db')
-  : path.join(__dirname, 'skyrovix.db');
+
+const isServerless = Boolean(process.env.VERCEL || (process.env.NODE_ENV === 'production' && process.env.AWS_LAMBDA_FUNCTION_NAME));
+let dbPath = path.join(__dirname, 'skyrovix.db');
+
+if (isServerless) {
+  const tmpDbPath = path.join('/tmp', 'skyrovix.db');
+  try {
+    const seedDbPath = path.join(__dirname, 'skyrovix.db');
+    if (!fs.existsSync(tmpDbPath) && fs.existsSync(seedDbPath)) {
+      fs.copyFileSync(seedDbPath, tmpDbPath);
+      console.log('✅ Copied seed skyrovix.db to', tmpDbPath);
+    }
+  } catch (copyErr) {
+    console.warn('⚠️ Could not copy seed db to /tmp:', copyErr.message);
+  }
+  dbPath = tmpDbPath;
+}
 
 sqlite3.verbose();
 
@@ -102,6 +117,9 @@ export async function initDb() {
       linkedin_url TEXT,
       skill_level TEXT NOT NULL,
       password_hash TEXT,
+      bio TEXT,
+      is_active INTEGER DEFAULT 1,
+      avatar_url TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -381,6 +399,9 @@ export async function initDb() {
   } catch (e) {}
   try {
     await dbRun(`ALTER TABLE students ADD COLUMN is_active INTEGER DEFAULT 1`);
+  } catch (e) {}
+  try {
+    await dbRun(`ALTER TABLE students ADD COLUMN avatar_url TEXT`);
   } catch (e) {}
 
   // Seed default batch

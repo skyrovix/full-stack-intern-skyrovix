@@ -60,7 +60,14 @@ async function syncAllToSupabase() {
     }
 
     // 5. Registrations
-    const registrations = await dbAll('SELECT id, student_id, batch_id, domain, full_name, email, mobile, college, department, year_of_study, city, skill_level, payment_status, registration_status, created_at, updated_at FROM registrations');
+    const registrations = await dbAll(`
+      SELECT 
+        r.id, r.student_id, r.batch_id, COALESCE(r.domain, 'Full Stack Development') as domain,
+        s.full_name, s.email, s.mobile, s.college, s.department, s.year_of_study, s.city, s.skill_level,
+        r.payment_status, r.registration_status, r.created_at, r.updated_at
+      FROM registrations r
+      JOIN students s ON r.student_id = s.id
+    `);
     if (registrations.length) {
       const { error } = await supabase.from('registrations').upsert(registrations);
       if (error) console.error('Registrations sync error:', error.message);
@@ -68,7 +75,14 @@ async function syncAllToSupabase() {
     }
 
     // 6. Payments
-    const payments = await dbAll('SELECT id, order_id, student_id, registration_id, amount, currency, status, cf_payment_id, payment_method, payment_time, failure_reason, created_at, updated_at FROM payments');
+    const payments = await dbAll(`
+      SELECT 
+        p.id, p.order_id, r.student_id, p.registration_id, p.amount, p.currency, p.status,
+        COALESCE(p.cf_payment_id, p.cashfree_payment_id) as cf_payment_id,
+        p.payment_method, p.payment_time, p.failure_reason, p.created_at, p.updated_at
+      FROM payments p
+      JOIN registrations r ON p.registration_id = r.id
+    `);
     if (payments.length) {
       const { error } = await supabase.from('payments').upsert(payments);
       if (error) console.error('Payments sync error:', error.message);
@@ -76,59 +90,87 @@ async function syncAllToSupabase() {
     }
 
     // 7. Student Tasks
-    const tasks = await dbAll('SELECT id, student_id, task_order, title, description, domain, difficulty, due_days, status, submission_status, created_at FROM student_tasks');
-    if (tasks.length) {
-      const { error } = await supabase.from('student_tasks').upsert(tasks);
-      if (error) console.error('Student tasks sync error:', error.message);
-      else console.log(`✅ Synced ${tasks.length} student tasks`);
+    try {
+      const tasks = await dbAll('SELECT id, student_id, task_order, title, description, domain, difficulty, due_days, status, submission_status, created_at FROM student_tasks');
+      if (tasks && tasks.length) {
+        const { error } = await supabase.from('student_tasks').upsert(tasks);
+        if (error) console.error('Student tasks sync error:', error.message);
+        else console.log(`✅ Synced ${tasks.length} student tasks`);
+      }
+    } catch (e) {
+      console.warn('Student tasks skip:', e.message);
     }
 
     // 8. Submissions
-    const submissions = await dbAll('SELECT id, student_id, task_id, github_repo_url, live_deployment_url, notes, status, grade, feedback, evaluated_at, created_at, updated_at FROM submissions');
-    if (submissions.length) {
-      const { error } = await supabase.from('submissions').upsert(submissions);
-      if (error) console.error('Submissions sync error:', error.message);
-      else console.log(`✅ Synced ${submissions.length} submissions`);
+    try {
+      const submissions = await dbAll('SELECT id, student_id, project_id as task_id, github_repo_url, live_deployment_url, notes, status, grade, feedback, reviewed_at as evaluated_at, submitted_at as created_at, submitted_at as updated_at FROM submissions');
+      if (submissions && submissions.length) {
+        const { error } = await supabase.from('submissions').upsert(submissions);
+        if (error) console.error('Submissions sync error:', error.message);
+        else console.log(`✅ Synced ${submissions.length} submissions`);
+      }
+    } catch (e) {
+      console.warn('Submissions skip:', e.message);
     }
 
     // 9. Certificates
-    const certificates = await dbAll('SELECT id, student_id, program, duration, batch, issue_date, grade, status, verification_hash, revoked, created_at FROM certificates');
-    if (certificates.length) {
-      const { error } = await supabase.from('certificates').upsert(certificates);
-      if (error) console.error('Certificates sync error:', error.message);
-      else console.log(`✅ Synced ${certificates.length} certificates`);
+    try {
+      const certificates = await dbAll('SELECT id, student_id, program, duration, batch, issue_date, grade, status, verification_hash, revoked, created_at FROM certificates');
+      if (certificates && certificates.length) {
+        const { error } = await supabase.from('certificates').upsert(certificates);
+        if (error) console.error('Certificates sync error:', error.message);
+        else console.log(`✅ Synced ${certificates.length} certificates`);
+      }
+    } catch (e) {
+      console.warn('Certificates skip:', e.message);
     }
 
     // 10. Offer Letters
-    const offerLetters = await dbAll('SELECT id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms, created_at FROM offer_letters');
-    if (offerLetters.length) {
-      const { error } = await supabase.from('offer_letters').upsert(offerLetters);
-      if (error) console.error('Offer letters sync error:', error.message);
-      else console.log(`✅ Synced ${offerLetters.length} offer letters`);
+    try {
+      const offerLetters = await dbAll('SELECT id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms, created_at FROM offer_letters');
+      if (offerLetters && offerLetters.length) {
+        const { error } = await supabase.from('offer_letters').upsert(offerLetters);
+        if (error) console.error('Offer letters sync error:', error.message);
+        else console.log(`✅ Synced ${offerLetters.length} offer letters`);
+      }
+    } catch (e) {
+      console.warn('Offer letters skip:', e.message);
     }
 
     // 11. Support Tickets
-    const tickets = await dbAll('SELECT id, student_id, subject, category, priority, status, created_at, updated_at FROM support_tickets');
-    if (tickets.length) {
-      const { error } = await supabase.from('support_tickets').upsert(tickets);
-      if (error) console.error('Support tickets sync error:', error.message);
-      else console.log(`✅ Synced ${tickets.length} support tickets`);
+    try {
+      const tickets = await dbAll('SELECT id, user_id as student_id, subject, category, priority, status, created_at, updated_at FROM support_tickets');
+      if (tickets && tickets.length) {
+        const { error } = await supabase.from('support_tickets').upsert(tickets);
+        if (error) console.error('Support tickets sync error:', error.message);
+        else console.log(`✅ Synced ${tickets.length} support tickets`);
+      }
+    } catch (e) {
+      console.warn('Support tickets skip:', e.message);
     }
 
     // 12. Support Replies
-    const replies = await dbAll('SELECT id, ticket_id, sender_type, sender_id, sender_name, message, created_at FROM support_replies');
-    if (replies.length) {
-      const { error } = await supabase.from('support_replies').upsert(replies);
-      if (error) console.error('Support replies sync error:', error.message);
-      else console.log(`✅ Synced ${replies.length} support replies`);
+    try {
+      const replies = await dbAll('SELECT id, ticket_id, sender_role as sender_type, sender_id, sender_name, message, created_at FROM support_replies');
+      if (replies && replies.length) {
+        const { error } = await supabase.from('support_replies').upsert(replies);
+        if (error) console.error('Support replies sync error:', error.message);
+        else console.log(`✅ Synced ${replies.length} support replies`);
+      }
+    } catch (e) {
+      console.warn('Support replies skip:', e.message);
     }
 
     // 13. Audit Logs
-    const auditLogs = await dbAll('SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs');
-    if (auditLogs.length) {
-      const { error } = await supabase.from('audit_logs').upsert(auditLogs);
-      if (error) console.error('Audit logs sync error:', error.message);
-      else console.log(`✅ Synced ${auditLogs.length} audit logs`);
+    try {
+      const auditLogs = await dbAll('SELECT id, admin_id, action, target_type, target_id, details, created_at FROM audit_logs');
+      if (auditLogs && auditLogs.length) {
+        const { error } = await supabase.from('audit_logs').upsert(auditLogs);
+        if (error) console.error('Audit logs sync error:', error.message);
+        else console.log(`✅ Synced ${auditLogs.length} audit logs`);
+      }
+    } catch (e) {
+      console.warn('Audit logs skip:', e.message);
     }
 
     console.log('🎉 Full Sync to Supabase Completed Successfully!');

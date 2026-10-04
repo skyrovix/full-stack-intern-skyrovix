@@ -28,10 +28,11 @@ import {
 import { isSupabaseConfigured } from './supabase.js';
 import { pullFromSupabase, pushToSupabase } from './supabaseSync.js';
 
-dotenv.config();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -3620,8 +3621,9 @@ app.get('*', (req, res, next) => {
 });
 
 // Initialize database & Start Server
-initDb()
-  .then(async () => {
+const initPromise = (async () => {
+  try {
+    await initDb();
     // If Supabase is configured, pull live data into local cache
     if (isSupabaseConfigured()) {
       await pullFromSupabase(dbRun);
@@ -3633,13 +3635,15 @@ initDb()
         console.log(`⚡ Supabase Database Configured: ${isSupabaseConfigured() ? 'YES (' + process.env.SUPABASE_URL + ')' : 'READY (Waiting for project URL & API keys in server/.env)'}`);
       });
     }
-  })
-  .catch((err) => {
-    console.error('❌ Failed to initialize database:', err);
-    process.exit(1);
-  });
+  } catch (err) {
+    console.error('❌ Database / sync initialization error:', err);
+    if (!process.env.VERCEL) {
+      process.exit(1);
+    }
+  }
+})();
 
+export { initPromise, app };
 export default app;
-export { app };
 
 
