@@ -22,7 +22,8 @@ import {
   verifyCashfreePayment,
   verifyCashfreeWebhookSignature,
   generateOrderId,
-  isCashfreeConfigured
+  isCashfreeConfigured,
+  getCashfreeEnvironment
 } from './cashfree.js';
 
 import { isSupabaseConfigured } from './supabase.js';
@@ -116,7 +117,7 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     service: 'Skyrovix Batch 1 Platform API',
     cashfree_configured: isCashfreeConfigured(),
-    cashfree_env: process.env.CASHFREE_ENVIRONMENT || 'sandbox'
+    cashfree_env: getCashfreeEnvironment()
   });
 });
 
@@ -270,7 +271,7 @@ app.post('/api/registrations/apply', async (req, res) => {
             amount: 200.0,
             currency: 'INR',
             payment_session_id: existingPayment.payment_session_id,
-            cashfree_mode: isRealMode ? (process.env.CASHFREE_ENVIRONMENT || 'production') : 'sandbox_simulation',
+            cashfree_mode: isRealMode ? getCashfreeEnvironment() : 'sandbox_simulation',
             customer_name: student.full_name,
             customer_email: student.email,
             customer_phone: student.mobile,
@@ -325,7 +326,7 @@ app.post('/api/registrations/apply', async (req, res) => {
 
     // Generate unique Cashfree Order ID
     const orderId = generateOrderId();
-    const isProd = (process.env.CASHFREE_ENVIRONMENT || 'production').toLowerCase() === 'production';
+    const isProd = getCashfreeEnvironment() === 'production';
     const prodAppUrl = 'https://fullstack-internship.skyrovix.in';
     const returnUrl = isProd
       ? `${prodAppUrl}/payment/status?order_id=${orderId}`
