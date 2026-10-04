@@ -295,7 +295,7 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO settings (key, value) VALUES
 ('BATCH_START_NOTICE', 'Batch 1 starts within the next 10 days.'),
 ('REGISTRATION_FEE', '200'),
-('BATCH_1_WHATSAPP_URL', 'https://chat.whatsapp.com/SkyrovixBatch1Official'),
+('BATCH_1_WHATSAPP_URL', 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'),
 ('REGISTRATIONS_OPEN', 'true')
 ON CONFLICT (key) DO NOTHING;
 

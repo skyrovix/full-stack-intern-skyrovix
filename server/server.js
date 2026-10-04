@@ -138,7 +138,7 @@ app.get('/api/public/config', async (req, res) => {
         registration_fee: 200,
         start_notice: startNotice?.value || 'Batch 1 starts within the next 10 days.',
       },
-      whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+      whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
       registration_active: regActive?.value !== 'false',
       cashfree_mode: isCashfreeConfigured() ? (process.env.CASHFREE_ENVIRONMENT || 'sandbox') : 'sandbox_simulation'
     });
@@ -420,7 +420,7 @@ app.post('/api/payments/verify', async (req, res) => {
           college: student.college
         },
         registration_id: registration.id,
-        whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+        whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
         message: 'Registration payment successfully verified.'
       });
     }
@@ -522,7 +522,7 @@ app.post('/api/payments/verify', async (req, res) => {
           college: student.college
         },
         registration_id: registration.id,
-        whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+        whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
         message: 'Payment verified successfully! Welcome to Skyrovix Batch 1.'
       });
     } else if (verification.payment_status === 'FAILED') {
@@ -667,7 +667,7 @@ app.get('/api/students/:id/dashboard', async (req, res) => {
         mode: '100% Virtual',
         duration: '3 Months'
       },
-      whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+      whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
       announcements,
       submissions,
       certificate
@@ -1907,7 +1907,7 @@ app.get('/api/user/internship', requirePaidStudent, async (req, res) => {
         status: registration?.registration_status === 'CONFIRMED' || registration?.payment_status === 'PAID' ? 'Active' : 'Pending Confirmation',
         mentor: 'Senior Full Stack Architect & Lead Technical Reviewer (Skyrovix)',
         progress_pct: realProgress,
-        whatsapp_url: whatsappSetting?.value || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+        whatsapp_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
         start_notice: startNotice?.value || 'Batch 1 starts within the next 10 days.',
         overview: 'Comprehensive hands-on virtual internship covering modern full stack web architecture, responsive frontend, secure Node/Express APIs, relational & NoSQL databases, and production deployments.',
         requirements: [

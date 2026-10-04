@@ -32,7 +32,7 @@ export default function App() {
   
   // Public config state
   const [publicConfig, setPublicConfig] = useState({
-    whatsapp_group_url: 'https://chat.whatsapp.com/G4uRYjU5vvn7HkrQEIERxz',
+    whatsapp_group_url: 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
     batch: {
       name: 'Batch 1',
       title: '3-Month Full Stack Development Internship',

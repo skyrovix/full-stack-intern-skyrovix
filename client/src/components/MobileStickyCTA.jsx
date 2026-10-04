@@ -7,7 +7,7 @@ export const MobileStickyCTA = ({ onOpenApply, whatsappUrl }) => {
     <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl md:hidden">
       <div className="flex items-center gap-2">
         <a
-          href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+          href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
           target="_blank"
           rel="noopener noreferrer"
           className="flex-1 py-3 px-3 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"

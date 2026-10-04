@@ -55,7 +55,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, wha
           </div>
 
           <a
-            href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+            href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
             target="_blank"
             rel="noopener noreferrer"
             className="hidden md:inline-flex items-center gap-1.5 text-cyan-300 hover:text-white font-semibold text-[11px] transition-colors"
@@ -102,7 +102,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, wha
             </button>
 
             <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-2 text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl transition-all whitespace-nowrap shadow-2xs"
@@ -169,7 +169,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, wha
             </button>
 
             <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-xl font-bold text-xs"

@@ -506,7 +506,7 @@ export async function initDb() {
   const defaultSettings = [
     {
       key: 'BATCH_1_WHATSAPP_URL',
-      value: process.env.BATCH_1_WHATSAPP_URL || 'https://chat.whatsapp.com/SkyrovixBatch1Official',
+      value: process.env.BATCH_1_WHATSAPP_URL || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
       description: 'Official WhatsApp Group invitation link for Batch 1 students'
     },
     {

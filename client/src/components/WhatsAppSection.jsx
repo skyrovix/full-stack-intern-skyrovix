@@ -62,7 +62,7 @@ export const WhatsAppSection = ({ whatsappUrl }) => {
 
               <div className="pt-3">
                 <a
-                  href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+                  href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
                   target="_blank"
                   rel="noopener noreferrer"
                   id="whatsapp-section-btn"

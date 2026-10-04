@@ -1322,7 +1322,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
                       <div className="flex flex-wrap items-center gap-2.5">
                         <a
-                          href={internshipData?.whatsapp_url || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+                          href={internshipData?.whatsapp_url || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-5 py-2 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-2 transition shadow-sm active:scale-95"

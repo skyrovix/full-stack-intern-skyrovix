@@ -212,7 +212,7 @@ export const AdminDashboard = ({ onLogout }) => {
 
       const settData = await settRes.json();
       setPortalSettings(settData.settings || {});
-      setWhatsappUrlInput(settData.settings?.BATCH_1_WHATSAPP_URL || 'https://chat.whatsapp.com/SkyrovixBatch1Official');
+      setWhatsappUrlInput(settData.settings?.BATCH_1_WHATSAPP_URL || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP');
       setStartNoticeInput(settData.settings?.BATCH_START_NOTICE || 'Batch 1 starts within the next 10 days.');
       setRegFeeInput(settData.settings?.REGISTRATION_FEE || '200');
 

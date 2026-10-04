@@ -65,7 +65,7 @@ export const BatchAnnouncement = ({ onOpenApply, whatsappUrl }) => {
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row lg:flex-col gap-3.5 w-full lg:w-72 shrink-0">
             <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl text-sm font-extrabold bg-[#25D366] hover:bg-[#20ba59] text-white shadow-xl shadow-emerald-950/50 transition-all transform hover:scale-[1.02] active:scale-100 cursor-pointer"

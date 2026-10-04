@@ -105,7 +105,7 @@ export const Hero = ({ onOpenApply, onOpenGuide, whatsappUrl }) => {
             </button>
 
             <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               id="hero-whatsapp-btn"

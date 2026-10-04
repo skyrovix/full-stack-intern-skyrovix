@@ -152,7 +152,7 @@ export const PaymentStatusView = ({
             </p>
 
             <a
-              href={verificationData?.whatsapp_group_url || whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={verificationData?.whatsapp_group_url || whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full py-3.5 px-4 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl font-extrabold text-sm shadow-md transition-all flex items-center justify-center gap-2"

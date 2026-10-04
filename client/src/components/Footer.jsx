@@ -39,7 +39,7 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
               APPLY FOR BATCH 1 (₹200)
             </button>
             <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
               target="_blank"
               rel="noopener noreferrer"
               className="px-6 py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
@@ -103,7 +103,7 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
               </a>
 
               <a
-                href={whatsappUrl || 'https://chat.whatsapp.com/SkyrovixBatch1Official'}
+                href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl bg-slate-900 hover:bg-[#25D366] border border-slate-800 text-slate-300 hover:text-white flex items-center justify-center transition-all shadow-sm"
