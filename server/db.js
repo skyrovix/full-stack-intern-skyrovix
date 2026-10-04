@@ -1,5 +1,4 @@
 import fs from 'fs';
-import sqlite3 from 'sqlite3';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
@@ -10,52 +9,121 @@ const __dirname = path.dirname(__filename);
 const isServerless = Boolean(process.env.VERCEL || (process.env.NODE_ENV === 'production' && process.env.AWS_LAMBDA_FUNCTION_NAME));
 let dbPath = path.join(__dirname, 'skyrovix.db');
 
-if (isServerless) {
-  const tmpDbPath = path.join('/tmp', 'skyrovix.db');
-  try {
-    const seedDbPath = path.join(__dirname, 'skyrovix.db');
-    if (!fs.existsSync(tmpDbPath) && fs.existsSync(seedDbPath)) {
-      fs.copyFileSync(seedDbPath, tmpDbPath);
-      console.log('✅ Copied seed skyrovix.db to', tmpDbPath);
+let sqlite3Db = null;
+let sqlJsDb = null;
+let isUsingSqlJs = false;
+
+// Initialization helper
+let initEnginePromise = null;
+export async function getDbEngine() {
+  if (initEnginePromise) return initEnginePromise;
+  initEnginePromise = (async () => {
+    // In serverless / Vercel, always use sql.js (WebAssembly) to avoid glibc version mismatches
+    if (isServerless) {
+      try {
+        const { default: initSqlJs } = await import('sql.js');
+        const SQL = await initSqlJs();
+        const seedPath = path.join(__dirname, 'skyrovix.db');
+        let filebuffer = null;
+        if (fs.existsSync(seedPath)) {
+          filebuffer = fs.readFileSync(seedPath);
+        } else if (fs.existsSync(path.join(process.cwd(), 'server', 'skyrovix.db'))) {
+          filebuffer = fs.readFileSync(path.join(process.cwd(), 'server', 'skyrovix.db'));
+        }
+        sqlJsDb = filebuffer ? new SQL.Database(filebuffer) : new SQL.Database();
+        isUsingSqlJs = true;
+        console.log('⚡ Connected to SQLite database via WebAssembly (sql.js)');
+        return;
+      } catch (sqlJsErr) {
+        console.warn('⚠️ sql.js failed to initialize in serverless:', sqlJsErr.message);
+      }
     }
-  } catch (copyErr) {
-    console.warn('⚠️ Could not copy seed db to /tmp:', copyErr.message);
-  }
-  dbPath = tmpDbPath;
+
+    // Try native sqlite3
+    try {
+      const sqlite3Module = (await import('sqlite3')).default;
+      sqlite3Module.verbose();
+      sqlite3Db = new sqlite3Module.Database(dbPath, (err) => {
+        if (err) console.error('❌ Could not connect to SQLite database:', err.message);
+        else console.log('✅ Connected to SQLite database at', dbPath);
+      });
+    } catch (sqliteErr) {
+      console.warn('⚠️ sqlite3 native addon failed, falling back to sql.js WebAssembly:', sqliteErr.message);
+      const { default: initSqlJs } = await import('sql.js');
+      const SQL = await initSqlJs();
+      const seedPath = path.join(__dirname, 'skyrovix.db');
+      let filebuffer = null;
+      if (fs.existsSync(seedPath)) {
+        filebuffer = fs.readFileSync(seedPath);
+      } else if (fs.existsSync(path.join(process.cwd(), 'server', 'skyrovix.db'))) {
+        filebuffer = fs.readFileSync(path.join(process.cwd(), 'server', 'skyrovix.db'));
+      }
+      sqlJsDb = filebuffer ? new SQL.Database(filebuffer) : new SQL.Database();
+      isUsingSqlJs = true;
+      console.log('⚡ Connected to SQLite database via WebAssembly (sql.js)');
+    }
+  })();
+  return initEnginePromise;
 }
 
-sqlite3.verbose();
+// Start engine loading immediately
+getDbEngine();
 
-export const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error('❌ Could not connect to SQLite database:', err.message);
-  } else {
-    console.log('✅ Connected to SQLite database at', dbPath);
-  }
-});
+export const db = {
+  run: (...args) => (sqlite3Db ? sqlite3Db.run(...args) : sqlJsDb?.run(...args)),
+  get: (...args) => (sqlite3Db ? sqlite3Db.get(...args) : null),
+  all: (...args) => (sqlite3Db ? sqlite3Db.all(...args) : null),
+};
 
 // Promisified DB helpers
-export const dbRun = (sql, params = []) => {
+export const dbRun = async (sql, params = []) => {
+  await getDbEngine();
+  if (isUsingSqlJs && sqlJsDb) {
+    sqlJsDb.run(sql, params);
+    return { lastID: null, changes: sqlJsDb.getRowsModified() };
+  }
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function (err) {
+    sqlite3Db.run(sql, params, function (err) {
       if (err) return reject(err);
       resolve({ lastID: this.lastID, changes: this.changes });
     });
   });
 };
 
-export const dbGet = (sql, params = []) => {
+export const dbGet = async (sql, params = []) => {
+  await getDbEngine();
+  if (isUsingSqlJs && sqlJsDb) {
+    const stmt = sqlJsDb.prepare(sql);
+    stmt.bind(params);
+    let row = null;
+    if (stmt.step()) {
+      row = stmt.getAsObject();
+    }
+    stmt.free();
+    return row;
+  }
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    sqlite3Db.get(sql, params, (err, row) => {
       if (err) return reject(err);
       resolve(row);
     });
   });
 };
 
-export const dbAll = (sql, params = []) => {
+export const dbAll = async (sql, params = []) => {
+  await getDbEngine();
+  if (isUsingSqlJs && sqlJsDb) {
+    const stmt = sqlJsDb.prepare(sql);
+    stmt.bind(params);
+    const rows = [];
+    while (stmt.step()) {
+      rows.push(stmt.getAsObject());
+    }
+    stmt.free();
+    return rows;
+  }
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    sqlite3Db.all(sql, params, (err, rows) => {
       if (err) return reject(err);
       resolve(rows);
     });
