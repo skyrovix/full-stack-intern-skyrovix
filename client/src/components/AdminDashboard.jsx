@@ -35,7 +35,18 @@ import {
   UserCheck,
   UserX,
   Plus,
-  GitMerge
+  GitMerge,
+  Database,
+  Cloud,
+  UploadCloud,
+  DownloadCloud,
+  Lock,
+  Edit3,
+  DollarSign,
+  Activity,
+  Sparkles,
+  Copy,
+  Sliders
 } from 'lucide-react';
 import navLogo from '../assets/top nav bar logo.png';
 import { AdminWorkflowManagement } from './workflow/AdminWorkflowManagement';
@@ -91,6 +102,61 @@ export const AdminDashboard = ({ onLogout }) => {
   const [whatsappUrlInput, setWhatsappUrlInput] = useState('');
   const [startNoticeInput, setStartNoticeInput] = useState('');
   const [regFeeInput, setRegFeeInput] = useState('200');
+
+  // Production Control States
+  const [showManualPayModal, setShowManualPayModal] = useState(false);
+  const [manualPayTarget, setManualPayTarget] = useState(null);
+  const [manualPayForm, setManualPayForm] = useState({
+    amount: '200',
+    paymentMethod: 'MANUAL_CASH_UPI',
+    notes: 'Verified offline payment / Admin manual override',
+    sendNotification: true
+  });
+  const [manualPayLoading, setManualPayLoading] = useState(false);
+
+  const [showResetPassModal, setShowResetPassModal] = useState(false);
+  const [resetPassTarget, setResetPassTarget] = useState(null);
+  const [resetPassInput, setResetPassInput] = useState('');
+  const [resetPassLoading, setResetPassLoading] = useState(false);
+
+  const [showEditStudentModal, setShowEditStudentModal] = useState(false);
+  const [editStudentForm, setEditStudentForm] = useState({
+    id: '',
+    full_name: '',
+    mobile: '',
+    college: '',
+    department: '',
+    degree: '',
+    year_of_study: '',
+    city: '',
+    state: '',
+    skill_level: 'Intermediate',
+    github_profile: '',
+    linkedin_profile: '',
+    is_active: 1
+  });
+  const [editStudentLoading, setEditStudentLoading] = useState(false);
+
+  // Cloud Sync state
+  const [cloudSyncLoading, setCloudSyncLoading] = useState(false);
+  const [cloudSyncStats, setCloudSyncStats] = useState(null);
+
+  // Admin Change Password state
+  const [adminPasswordForm, setAdminPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [adminPasswordLoading, setAdminPasswordLoading] = useState(false);
+  const [adminPasswordStatus, setAdminPasswordStatus] = useState(null);
+
+  // Cashfree Live Query Tool
+  const [cashfreeQueryInput, setCashfreeQueryInput] = useState('');
+  const [cashfreeQueryResult, setCashfreeQueryResult] = useState(null);
+  const [cashfreeQueryLoading, setCashfreeQueryLoading] = useState(false);
+
+  // Copy Feedback state
+  const [copiedKey, setCopiedKey] = useState('');
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -517,6 +583,290 @@ export const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  // Helper: Copy to Clipboard
+  const copyToClipboard = (text, key) => {
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(''), 2500);
+    showToast('Copied to clipboard!');
+  };
+
+  // Manual Payment Override Handlers
+  const handleOpenManualPayment = (student) => {
+    setManualPayTarget(student);
+    setManualPayForm({
+      amount: portalSettings.REGISTRATION_FEE || '200',
+      paymentMethod: 'MANUAL_CASH_UPI',
+      notes: `Direct administrative confirmation for ${student.full_name}`,
+      sendNotification: true
+    });
+    setShowManualPayModal(true);
+  };
+
+  const handleSubmitManualPayment = async (e) => {
+    e.preventDefault();
+    if (!manualPayTarget) return;
+    setManualPayLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/students/${manualPayTarget.id}/manual-payment`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify(manualPayForm)
+      });
+      const data = await res.json();
+      setManualPayLoading(false);
+
+      if (res.ok) {
+        showToast(`Payment confirmed! ${manualPayTarget.full_name} is now enrolled with offer letter.`);
+        setShowManualPayModal(false);
+        setManualPayTarget(null);
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to record manual payment');
+      }
+    } catch (err) {
+      setManualPayLoading(false);
+      showToast('Network error processing payment override');
+    }
+  };
+
+  // Student Password Reset Handlers
+  const handleOpenResetPassword = (student) => {
+    setResetPassTarget(student);
+    setResetPassInput('');
+    setShowResetPassModal(true);
+  };
+
+  const handleGenerateRandomPass = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let p = '';
+    for (let i = 0; i < 10; i++) {
+      p += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setResetPassInput(p);
+  };
+
+  const handleSubmitResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetPassTarget || !resetPassInput) return;
+    if (resetPassInput.length < 6) {
+      showToast('Password must be at least 6 characters');
+      return;
+    }
+    setResetPassLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/students/${resetPassTarget.id}/reset-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({ newPassword: resetPassInput })
+      });
+      const data = await res.json();
+      setResetPassLoading(false);
+
+      if (res.ok) {
+        showToast(`Password successfully reset for ${resetPassTarget.full_name}`);
+        setShowResetPassModal(false);
+        setResetPassTarget(null);
+        setResetPassInput('');
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to reset password');
+      }
+    } catch (err) {
+      setResetPassLoading(false);
+      showToast('Network error resetting student password');
+    }
+  };
+
+  // Student Profile Edit Handlers
+  const handleOpenEditStudent = (student) => {
+    setEditStudentForm({
+      id: student.id,
+      full_name: student.full_name || '',
+      mobile: student.mobile || '',
+      college: student.college || '',
+      department: student.department || '',
+      degree: student.degree || '',
+      year_of_study: student.year_of_study || '',
+      city: student.city || '',
+      state: student.state || '',
+      skill_level: student.skill_level || 'Intermediate',
+      github_profile: student.github_profile || '',
+      linkedin_profile: student.linkedin_profile || '',
+      is_active: student.is_active !== undefined ? student.is_active : 1
+    });
+    setShowEditStudentModal(true);
+  };
+
+  const handleSubmitEditStudent = async (e) => {
+    e.preventDefault();
+    if (!editStudentForm.id) return;
+    setEditStudentLoading(true);
+
+    try {
+      const res = await fetch(`/api/admin/students/${editStudentForm.id}/details`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify(editStudentForm)
+      });
+      const data = await res.json();
+      setEditStudentLoading(false);
+
+      if (res.ok) {
+        showToast('Student profile details updated successfully!');
+        setShowEditStudentModal(false);
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to update details');
+      }
+    } catch (err) {
+      setEditStudentLoading(false);
+      showToast('Network error updating student details');
+    }
+  };
+
+  // Supabase Cloud Synchronisation Handlers
+  const handleTriggerSupabasePush = async () => {
+    if (!window.confirm('Force-push all local SQLite records (students, payments, certificates, offer letters, system settings) to Supabase Cloud?')) return;
+    setCloudSyncLoading(true);
+
+    try {
+      const res = await fetch('/api/admin/sync/supabase-push', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      setCloudSyncLoading(false);
+
+      if (res.ok) {
+        setCloudSyncStats(data.synced);
+        showToast(`Cloud Sync Complete: Synced ${data.synced?.students || 0} students, ${data.synced?.registrations || 0} registrations, and records to Supabase.`);
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Supabase push failed');
+      }
+    } catch (err) {
+      setCloudSyncLoading(false);
+      showToast('Network error during Supabase sync');
+    }
+  };
+
+  const handleTriggerSupabasePull = async () => {
+    if (!window.confirm('Pull latest student records from Supabase Cloud into local database? Existing matching records will be preserved.')) return;
+    setCloudSyncLoading(true);
+
+    try {
+      const res = await fetch('/api/admin/sync/supabase-pull', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      setCloudSyncLoading(false);
+
+      if (res.ok) {
+        showToast(`Cloud Pull Complete: Loaded ${data.pulled?.students || 0} students and ${data.pulled?.registrations || 0} registrations.`);
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Supabase pull failed');
+      }
+    } catch (err) {
+      setCloudSyncLoading(false);
+      showToast('Network error pulling from Supabase');
+    }
+  };
+
+  // Master Admin Password Change Handler
+  const handleChangeAdminPassword = async (e) => {
+    e.preventDefault();
+    if (adminPasswordForm.newPassword !== adminPasswordForm.confirmPassword) {
+      showToast('New passwords do not match');
+      return;
+    }
+    if (adminPasswordForm.newPassword.length < 6) {
+      showToast('New password must be at least 6 characters');
+      return;
+    }
+    setAdminPasswordLoading(true);
+    setAdminPasswordStatus(null);
+
+    try {
+      const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          currentPassword: adminPasswordForm.currentPassword,
+          newPassword: adminPasswordForm.newPassword
+        })
+      });
+      const data = await res.json();
+      setAdminPasswordLoading(false);
+
+      if (res.ok) {
+        setAdminPasswordStatus({ success: true, message: data.message });
+        setAdminPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        showToast('Admin master password successfully changed!');
+      } else {
+        setAdminPasswordStatus({ success: false, message: data.error || 'Failed to change password' });
+        showToast(data.error || 'Failed to change password');
+      }
+    } catch (err) {
+      setAdminPasswordLoading(false);
+      setAdminPasswordStatus({ success: false, message: 'Server communication error' });
+    }
+  };
+
+  // Cashfree Live PG Query Handler
+  const handleQueryCashfreeLive = async (e, directId) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const orderIdToLookup = (directId || cashfreeQueryInput || '').trim();
+    if (!orderIdToLookup) {
+      showToast('Please enter a Cashfree Order ID');
+      return;
+    }
+    setCashfreeQueryLoading(true);
+    setCashfreeQueryResult(null);
+
+    try {
+      const res = await fetch(`/api/admin/verify-order/${orderIdToLookup}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      setCashfreeQueryLoading(false);
+      setCashfreeQueryResult(data);
+      showToast(`Gateway query completed: ${data.verification?.payment_status || data.error || 'Done'}`);
+      fetchAllAdminData();
+    } catch (err) {
+      setCashfreeQueryLoading(false);
+      showToast('Error querying Cashfree Gateway');
+    }
+  };
+
+  // Export Ledger and Database Handlers
+  const handleExportPaymentsCsv = () => {
+    window.open(`/api/admin/export-payments-csv?token=${authToken}`, '_blank');
+  };
+
+  const handleExportBackupJson = () => {
+    window.open(`/api/admin/export-backup-json?token=${authToken}`, '_blank');
+  };
+
   // If Not Authenticated, show Login Form
   if (!authToken) {
     return (
@@ -719,29 +1069,61 @@ export const AdminDashboard = ({ onLogout }) => {
             </button>
 
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-400">Admin Workspace</span>
+              <span className="text-xs font-semibold text-slate-400">Admin Control</span>
               <span className="text-xs text-slate-300">/</span>
               <span className="text-xs font-bold text-slate-900 capitalize">
                 {activeView.replace('-', ' ')}
               </span>
             </div>
+
+            {/* Live Gateway & Cloud Badges */}
+            <div className="hidden sm:flex items-center gap-2 ml-3">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>PG: LIVE PROD</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-50 text-sky-700 border border-sky-200">
+                <Cloud className="w-3 h-3 text-sky-500" />
+                <span>SUPABASE READY</span>
+              </span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={fetchAllAdminData}
-              className="p-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
-              title="Refresh Data"
+              onClick={handleTriggerSupabasePush}
+              disabled={cloudSyncLoading}
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition disabled:opacity-50"
+              title="Force push local database to Supabase Cloud"
             >
-              <RefreshCw className={`w-4 h-4 ${loadingData ? 'animate-spin' : ''}`} />
+              <UploadCloud className={`w-3.5 h-3.5 ${cloudSyncLoading ? 'animate-bounce' : ''}`} />
+              <span>{cloudSyncLoading ? 'Syncing...' : 'Sync Cloud'}</span>
             </button>
 
             <button
-              onClick={() => window.open(`/api/admin/export-csv?token=${authToken}`, '_blank')}
-              className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+              onClick={handleExportBackupJson}
+              className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition"
+              title="Download entire database state as JSON backup"
+            >
+              <Database className="w-3.5 h-3.5 text-slate-500" />
+              <span>Backup JSON</span>
+            </button>
+
+            <button
+              onClick={handleExportPaymentsCsv}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-xs"
+              title="Export all transactions ledger"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Export CSV</span>
+            </button>
+
+            <button
+              onClick={fetchAllAdminData}
+              className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition"
+              title="Refresh All Data"
+            >
+              <RefreshCw className={`w-4 h-4 ${loadingData ? 'animate-spin text-sky-600' : ''}`} />
             </button>
           </div>
         </header>
@@ -750,24 +1132,52 @@ export const AdminDashboard = ({ onLogout }) => {
         <main className="p-4 sm:p-6 lg:p-8 space-y-7 max-w-7xl mx-auto w-full">
           
           {/* ========================================================
-              VIEW 1: ADMIN HOME / DASHBOARD (SECTION 17)
+              VIEW 1: ADMIN HOME / DASHBOARD (PRODUCTION READY)
           ======================================================== */}
           {activeView === 'dashboard' && (
             <div className="space-y-7">
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Platform Analytics &amp; Key Metrics</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Real-time statistics synchronized directly with the SQLite production database</p>
+              {/* Header Title & System Health Ribbon */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">Platform Command Center</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Real-time statistics synchronized with SQLite production database &amp; Supabase Cloud</p>
+                </div>
+
+                {/* Health strip */}
+                <div className="flex flex-wrap items-center gap-2 p-2 bg-white rounded-2xl border border-slate-200/80 shadow-2xs text-xs">
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    <span className="font-bold text-slate-700">Cashfree PG:</span>
+                    <span className="font-extrabold text-emerald-700">Active</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50">
+                    <Database className="w-3.5 h-3.5 text-sky-600" />
+                    <span className="font-bold text-slate-700">Cloud Sync:</span>
+                    <span className="font-extrabold text-sky-700">Supabase</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50">
+                    <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="font-bold text-slate-700">WhatsApp:</span>
+                    <button
+                      onClick={() => copyToClipboard(portalSettings.BATCH_1_WHATSAPP_URL || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP', 'wa_top')}
+                      className="text-[11px] font-bold text-emerald-700 hover:underline flex items-center gap-1"
+                    >
+                      <span>{copiedKey === 'wa_top' ? 'Copied!' : 'Copy Link'}</span>
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Statistics Grid */}
+              {/* Statistics Key Metrics Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-slate-500">Total Users</div>
+                    <div className="text-xs font-semibold text-slate-500">Total Applicants</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{stats?.total_applicants || usersList.length}</div>
-                    <div className="text-[10px] text-emerald-600 font-bold mt-0.5">Registered Students</div>
+                    <div className="text-[10px] text-sky-600 font-bold mt-0.5">Registered Students</div>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
                     <Users className="w-5 h-5" />
                   </div>
                 </div>
@@ -776,32 +1186,197 @@ export const AdminDashboard = ({ onLogout }) => {
                   <div>
                     <div className="text-xs font-semibold text-slate-500">Confirmed Enrolled</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{stats?.paid_registrations || 0}</div>
-                    <div className="text-[10px] text-emerald-600 font-bold mt-0.5">Payment Verified</div>
+                    <div className="text-[10px] text-emerald-600 font-bold mt-0.5">Paid &amp; Active</div>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                 </div>
 
                 <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-slate-500">Total Revenue</div>
+                    <div className="text-xs font-semibold text-slate-500">Total Gross Revenue</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">₹{stats?.total_collection || 0}.00</div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">Cashfree Collected</div>
+                    <div className="text-[10px] text-amber-600 font-bold mt-0.5">Cashfree + Manual</div>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
                     <CreditCard className="w-5 h-5" />
                   </div>
                 </div>
 
                 <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
                   <div>
-                    <div className="text-xs font-semibold text-slate-500">Certificates Issued</div>
+                    <div className="text-xs font-semibold text-slate-500">Credentials Issued</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{certificatesList.length}</div>
-                    <div className="text-[10px] text-purple-600 font-bold mt-0.5">Verified Credentials</div>
+                    <div className="text-[10px] text-purple-600 font-bold mt-0.5">{offerLettersList.length} Offer Letters</div>
                   </div>
-                  <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
                     <Award className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Functional Controls Quick Action Panel */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                      <Sliders className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-white">Administrative Functional Controls</h3>
+                      <p className="text-[11px] text-slate-400">Direct operational overrides and production maintenance tools</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-slate-800 text-sky-400 border border-slate-700 font-bold">
+                    SuperAdmin Access
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+                  <button
+                    onClick={() => {
+                      const firstUnpaid = usersList.find(u => u.payment_status !== 'PAID') || usersList[0];
+                      if (firstUnpaid) {
+                        handleOpenManualPayment(firstUnpaid);
+                      } else {
+                        showToast('All registered students are already marked paid!');
+                      }
+                    }}
+                    className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <DollarSign className="w-4 h-4" />
+                    </div>
+                    <div className="font-bold text-xs text-white">Manual Pay</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Confirm &amp; Enroll</div>
+                  </button>
+
+                  <button
+                    onClick={handleTriggerSupabasePush}
+                    disabled={cloudSyncLoading}
+                    className="p-3.5 bg-slate-800/90 hover:bg-sky-600/30 border border-slate-700 hover:border-sky-500/50 rounded-2xl text-left transition group disabled:opacity-50"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <UploadCloud className={`w-4 h-4 ${cloudSyncLoading ? 'animate-bounce' : ''}`} />
+                    </div>
+                    <div className="font-bold text-xs text-white">Cloud Push</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Sync to Supabase</div>
+                  </button>
+
+                  <button
+                    onClick={handleTriggerSupabasePull}
+                    disabled={cloudSyncLoading}
+                    className="p-3.5 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/50 rounded-2xl text-left transition group disabled:opacity-50"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <DownloadCloud className="w-4 h-4" />
+                    </div>
+                    <div className="font-bold text-xs text-white">Cloud Pull</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Fetch Cloud State</div>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenerateOLModal(true)}
+                    className="p-3.5 bg-slate-800/90 hover:bg-amber-600/30 border border-slate-700 hover:border-amber-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <FileCheck2 className="w-4 h-4" />
+                    </div>
+                    <div className="font-bold text-xs text-white">Issue Offer</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Generate Letter</div>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenerateCertModal(true)}
+                    className="p-3.5 bg-slate-800/90 hover:bg-purple-600/30 border border-slate-700 hover:border-purple-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Award className="w-4 h-4" />
+                    </div>
+                    <div className="font-bold text-xs text-white">Issue Certificate</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Generate Credential</div>
+                  </button>
+
+                  <button
+                    onClick={() => setShowBroadcastModal(true)}
+                    className="p-3.5 bg-slate-800/90 hover:bg-rose-600/30 border border-slate-700 hover:border-rose-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Bell className="w-4 h-4" />
+                    </div>
+                    <div className="font-bold text-xs text-white">Broadcast</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Send Global Notice</div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Conversion Pipeline & Financial KPI Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Admissions Conversion</span>
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">
+                    {usersList.length > 0 
+                      ? `${(((stats?.paid_registrations || 0) / usersList.length) * 100).toFixed(1)}%` 
+                      : '0%'}
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {stats?.paid_registrations || 0} enrolled of {usersList.length} total signups
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                    <div 
+                      className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${usersList.length > 0 ? ((stats?.paid_registrations || 0) / usersList.length) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Payment Pipeline Status</span>
+                    <CreditCard className="w-4 h-4 text-sky-600" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">
+                    {usersList.filter(u => u.payment_status !== 'PAID').length}
+                  </div>
+                  <div className="text-[11px] text-amber-600 font-bold">
+                    Pending / Unconfirmed Students
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Use Manual Pay Override to approve students who paid via direct UPI or cash.
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-500">Database &amp; Cloud Ledger</span>
+                    <Database className="w-4 h-4 text-purple-600" />
+                  </div>
+                  <div className="text-2xl font-black text-slate-900">
+                    {paymentsList.length} Transactions
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {auditLogsList.length} security audit events recorded
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={handleExportPaymentsCsv}
+                      className="text-[11px] font-bold text-sky-600 hover:underline flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>Ledger CSV</span>
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      onClick={handleExportBackupJson}
+                      className="text-[11px] font-bold text-purple-600 hover:underline flex items-center gap-1"
+                    >
+                      <Database className="w-3 h-3" />
+                      <span>Full Backup</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -812,21 +1387,33 @@ export const AdminDashboard = ({ onLogout }) => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-sky-600" />
-                      <span>Registration Volume (Recent)</span>
+                      <span>Recent Student Registrations</span>
                     </h3>
-                    <span className="text-[10px] font-bold text-slate-400">Live Database Feed</span>
+                    <button onClick={() => setActiveView('users')} className="text-[10px] font-bold text-sky-600 hover:underline">
+                      View All ({usersList.length})
+                    </button>
                   </div>
 
                   <div className="space-y-3 pt-2">
                     {usersList.slice(0, 5).map(u => (
-                      <div key={u.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-                        <div>
-                          <div className="font-bold text-slate-900">{u.full_name}</div>
-                          <div className="text-[11px] text-slate-500">{u.email} • {u.college}</div>
+                      <div key={u.id} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs">
+                        <div className="min-w-0 pr-3">
+                          <div className="font-bold text-slate-900 truncate">{u.full_name}</div>
+                          <div className="text-[11px] text-slate-500 truncate">{u.email} • {u.college || 'FSD Track'}</div>
                         </div>
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${u.payment_status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
-                          {u.payment_status === 'PAID' ? 'PAID' : 'PENDING'}
-                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${u.payment_status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}`}>
+                            {u.payment_status === 'PAID' ? 'PAID' : 'PENDING'}
+                          </span>
+                          {u.payment_status !== 'PAID' && (
+                            <button
+                              onClick={() => handleOpenManualPayment(u)}
+                              className="px-2 py-0.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-[10px] transition"
+                            >
+                              Confirm
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -836,19 +1423,24 @@ export const AdminDashboard = ({ onLogout }) => {
                   <div className="flex items-center justify-between">
                     <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
                       <Clock className="w-4 h-4 text-amber-500" />
-                      <span>Recent Administrative Audit Logs</span>
+                      <span>Recent Administrative Audit Trails</span>
                     </h3>
                     <button onClick={() => setActiveView('settings')} className="text-[10px] font-bold text-sky-600 hover:underline">View All</button>
                   </div>
 
                   <div className="space-y-2 pt-2">
                     {auditLogsList.slice(0, 5).map(log => (
-                      <div key={log.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-start justify-between gap-3">
-                        <div className="space-y-0.5">
-                          <span className="font-bold text-slate-900">{log.action}</span>
-                          <p className="text-[11px] text-slate-500 font-mono truncate max-w-xs">{log.details}</p>
+                      <div key={log.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-100 text-xs flex items-start justify-between gap-3">
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono font-bold text-[10px] px-1.5 py-0.5 rounded bg-sky-100 text-sky-800">
+                              {log.action}
+                            </span>
+                            <span className="text-[10px] text-slate-400">by {log.admin_name}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-mono truncate max-w-xs">{log.details}</p>
                         </div>
-                        <span className="text-[10px] text-slate-400 shrink-0">
+                        <span className="text-[10px] text-slate-400 shrink-0 font-mono">
                           {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                         </span>
                       </div>
@@ -867,16 +1459,16 @@ export const AdminDashboard = ({ onLogout }) => {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-extrabold text-slate-900">User Management ({usersList.length})</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Search, inspect student credentials, manage account status, and view deliverables</p>
+                  <h2 className="text-xl font-extrabold text-slate-900">Student &amp; User Operations ({usersList.length})</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Search, manage student profiles, manual fee overrides, credential resets, and access state</p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs">
                     <Search className="w-3.5 h-3.5 text-slate-400" />
                     <input
                       type="text"
-                      placeholder="Search by name, email, college..."
+                      placeholder="Search name, email, college..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="bg-transparent focus:outline-none w-44 text-xs"
@@ -889,11 +1481,55 @@ export const AdminDashboard = ({ onLogout }) => {
                     className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold focus:outline-none"
                   >
                     <option value="ALL">All Status</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Deactivated</option>
                     <option value="PAID">Paid Only</option>
+                    <option value="UNPAID">Pending / Unpaid</option>
+                    <option value="ACTIVE">Active Only</option>
+                    <option value="INACTIVE">Deactivated Only</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Quick Filter Summary Pills */}
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button
+                  onClick={() => setStatusFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${statusFilter === 'ALL' ? 'bg-slate-900 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <span>All Students</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200/50 text-current">{usersList.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setStatusFilter('PAID')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${statusFilter === 'PAID' ? 'bg-emerald-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Paid &amp; Enrolled</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800">
+                    {usersList.filter(u => u.payment_status === 'PAID').length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setStatusFilter('UNPAID')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${statusFilter === 'UNPAID' ? 'bg-amber-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <Clock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Pending Payment</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-800">
+                    {usersList.filter(u => u.payment_status !== 'PAID').length}
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setStatusFilter('ACTIVE')}
+                  className={`px-3 py-1.5 rounded-xl font-bold transition flex items-center gap-1.5 ${statusFilter === 'ACTIVE' ? 'bg-sky-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  <span>Active Accounts</span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-100 text-sky-800">
+                    {usersList.filter(u => u.is_active !== 0).length}
+                  </span>
+                </button>
               </div>
 
               {/* Users Table */}
@@ -902,12 +1538,12 @@ export const AdminDashboard = ({ onLogout }) => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">User / ID</th>
-                        <th className="py-3.5 px-6">Contact</th>
-                        <th className="py-3.5 px-6">College &amp; Dept</th>
-                        <th className="py-3.5 px-6">Account Status</th>
-                        <th className="py-3.5 px-6">Enrollment</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
+                        <th className="py-3.5 px-6">Student &amp; ID</th>
+                        <th className="py-3.5 px-6">Contact Details</th>
+                        <th className="py-3.5 px-6">Academic Background</th>
+                        <th className="py-3.5 px-6">Payment / Status</th>
+                        <th className="py-3.5 px-6">Access</th>
+                        <th className="py-3.5 px-6 text-right">Functional Controls</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -916,56 +1552,108 @@ export const AdminDashboard = ({ onLogout }) => {
                           const matchesSearch = !searchQuery || 
                             u.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
                             u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                            u.mobile?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                             u.college?.toLowerCase().includes(searchQuery.toLowerCase());
                           
                           if (!matchesSearch) return false;
                           if (statusFilter === 'ACTIVE') return u.is_active !== 0;
                           if (statusFilter === 'INACTIVE') return u.is_active === 0;
                           if (statusFilter === 'PAID') return u.payment_status === 'PAID';
+                          if (statusFilter === 'UNPAID') return u.payment_status !== 'PAID';
                           return true;
                         })
                         .map(u => (
                           <tr key={u.id} className="hover:bg-slate-50/60 transition">
                             <td className="py-4 px-6">
                               <div className="font-bold text-slate-900">{u.full_name}</div>
-                              <div className="font-mono text-[10px] text-slate-400">{u.id}</div>
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <span className="font-mono text-[10px] text-slate-400 truncate max-w-[130px]">{u.id}</span>
+                                <button
+                                  onClick={() => copyToClipboard(u.id, `id_${u.id}`)}
+                                  className="text-slate-400 hover:text-slate-700"
+                                  title="Copy Student ID"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
                             </td>
                             <td className="py-4 px-6">
-                              <div className="text-slate-800">{u.email}</div>
-                              <div className="text-[11px] text-slate-500">{u.mobile}</div>
+                              <div className="text-slate-800 font-semibold">{u.email}</div>
+                              <div className="text-[11px] text-slate-500 font-mono">{u.mobile || '—'}</div>
+                              {u.city && <div className="text-[10px] text-slate-400">{u.city}{u.state ? `, ${u.state}` : ''}</div>}
                             </td>
                             <td className="py-4 px-6">
-                              <div className="text-slate-800 font-semibold">{u.college || 'Engineering'}</div>
-                              <div className="text-[11px] text-slate-500">{u.department || 'Full Stack Development'} • {u.year_of_study || '3rd Year'}</div>
+                              <div className="text-slate-800 font-semibold max-w-[180px] truncate">{u.college || 'Engineering'}</div>
+                              <div className="text-[11px] text-slate-500">{u.department || 'Full Stack'} • {u.year_of_study || '3rd Year'}</div>
+                              <span className="inline-block mt-0.5 text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                                {u.skill_level || 'Intermediate'}
+                              </span>
                             </td>
                             <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${u.is_active !== 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                              <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] inline-flex items-center gap-1 ${
+                                u.payment_status === 'PAID' 
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              }`}>
+                                {u.payment_status === 'PAID' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
+                                <span>{u.payment_status === 'PAID' ? 'PAID / CONFIRMED' : 'PAYMENT PENDING'}</span>
+                              </span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${u.is_active !== 0 ? 'bg-sky-100 text-sky-800' : 'bg-rose-100 text-rose-800'}`}>
                                 {u.is_active !== 0 ? 'Active' : 'Deactivated'}
                               </span>
                             </td>
-                            <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${u.payment_status === 'PAID' ? 'bg-sky-100 text-sky-800' : 'bg-slate-100 text-slate-700'}`}>
-                                {u.payment_status === 'PAID' ? 'PAID / CONFIRMED' : 'APPLICATION STARTED'}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 text-right space-x-2">
-                              <button
-                                onClick={async () => {
-                                  const res = await fetch(`/api/admin/users/${u.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
-                                  const d = await res.json();
-                                  setSelectedUserDetail(d);
-                                }}
-                                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
-                              >
-                                View
-                              </button>
+                            <td className="py-4 px-6 text-right">
+                              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch(`/api/admin/users/${u.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+                                    const d = await res.json();
+                                    setSelectedUserDetail(d);
+                                  }}
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
+                                  title="View Full Profile Dossier"
+                                >
+                                  View
+                                </button>
 
-                              <button
-                                onClick={() => handleToggleUserStatus(u)}
-                                className={`px-3 py-1 font-bold rounded-lg transition ${u.is_active !== 0 ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}`}
-                              >
-                                {u.is_active !== 0 ? 'Deactivate' : 'Activate'}
-                              </button>
+                                <button
+                                  onClick={() => handleOpenEditStudent(u)}
+                                  className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition flex items-center gap-1"
+                                  title="Edit Student Details"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  <span>Edit</span>
+                                </button>
+
+                                {u.payment_status !== 'PAID' && (
+                                  <button
+                                    onClick={() => handleOpenManualPayment(u)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-2xs"
+                                    title="Manual Confirm & Enroll"
+                                  >
+                                    <DollarSign className="w-3 h-3" />
+                                    <span>Confirm Pay</span>
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => handleOpenResetPassword(u)}
+                                  className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg transition"
+                                  title="Reset Student Password"
+                                >
+                                  <Key className="w-3.5 h-3.5" />
+                                </button>
+
+                                <button
+                                  onClick={() => handleToggleUserStatus(u)}
+                                  className={`px-2 py-1 font-bold rounded-lg transition text-[11px] ${u.is_active !== 0 ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}`}
+                                  title={u.is_active !== 0 ? 'Deactivate student dashboard access' : 'Activate access'}
+                                >
+                                  {u.is_active !== 0 ? 'Deactivate' : 'Activate'}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -981,10 +1669,10 @@ export const AdminDashboard = ({ onLogout }) => {
           ======================================================== */}
           {activeView === 'applications' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900">Application Management ({applicationsList.length})</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Review submissions, approve student admission, update stage workflows, and log audits</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Review submissions, manual fee overrides, student admissions, and stage workflows</p>
                 </div>
               </div>
 
@@ -1002,44 +1690,62 @@ export const AdminDashboard = ({ onLogout }) => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {applicationsList.map(app => (
-                        <tr key={app.application_id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-4 px-6 font-mono font-bold text-sky-700">
-                            {app.application_id}
-                          </td>
-                          <td className="py-4 px-6 font-bold text-slate-900">
-                            {app.full_name}
-                          </td>
-                          <td className="py-4 px-6 text-slate-600">
-                            <div>{app.email}</div>
-                            <div className="text-[11px] text-slate-400">{app.mobile}</div>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="px-2 py-0.5 rounded-full font-bold text-[10px] bg-emerald-100 text-emerald-800">
-                              ₹{app.amount || 200} PAID
-                            </span>
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className="px-2.5 py-0.5 rounded-full font-bold text-[10px] bg-blue-100 text-blue-800">
-                              {app.registration_status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right space-x-1.5">
-                            <button
-                              onClick={() => handleUpdateApplicationStatus(app.application_id, 'CONFIRMED')}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleUpdateApplicationStatus(app.application_id, 'REJECTED')}
-                              className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-xs"
-                            >
-                              Reject
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {applicationsList.map(app => {
+                        const linkedUser = usersList.find(u => u.id === app.user_id || u.email === app.email);
+                        const isPaid = app.payment_status === 'PAID' || linkedUser?.payment_status === 'PAID';
+
+                        return (
+                          <tr key={app.application_id} className="hover:bg-slate-50/60 transition">
+                            <td className="py-4 px-6 font-mono font-bold text-sky-700">
+                              {app.application_id}
+                            </td>
+                            <td className="py-4 px-6 font-bold text-slate-900">
+                              {app.full_name}
+                            </td>
+                            <td className="py-4 px-6 text-slate-600">
+                              <div>{app.email}</div>
+                              <div className="text-[11px] text-slate-400">{app.mobile}</div>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {isPaid ? `₹${app.amount || 200} PAID` : 'PENDING'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                                app.registration_status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                              }`}>
+                                {app.registration_status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-right space-x-1.5">
+                              {!isPaid && linkedUser && (
+                                <button
+                                  onClick={() => handleOpenManualPayment(linkedUser)}
+                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
+                                  title="Mark Paid and Confirm"
+                                >
+                                  Mark Paid
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleUpdateApplicationStatus(app.application_id, 'CONFIRMED')}
+                                className="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                onClick={() => handleUpdateApplicationStatus(app.application_id, 'REJECTED')}
+                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-xs"
+                              >
+                                Reject
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1379,34 +2085,118 @@ export const AdminDashboard = ({ onLogout }) => {
           )}
 
           {/* ========================================================
-              VIEW 8: PAYMENT MANAGEMENT (SECTION 24)
+              VIEW 8: PAYMENT MANAGEMENT & CASHFREE GATEWAY (SECTION 24)
           ======================================================== */}
           {activeView === 'payments' && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-xl font-extrabold text-slate-900">Payment Management ({paymentsList.length})</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Real-time payment logs, Cashfree PG settlement IDs, and manual verification triggers</p>
+                  <h2 className="text-xl font-extrabold text-slate-900">Payment &amp; Gateway Management ({paymentsList.length})</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Real-time payment logs, live Cashfree API verification, settlement tracking, and ledger export</p>
                 </div>
 
-                <button
-                  onClick={() => window.open(`/api/admin/export-csv?token=${authToken}`, '_blank')}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download Ledger CSV</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleExportPaymentsCsv}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-sm transition"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Ledger CSV</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Cashfree Live Order Inspector Box */}
+              <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white border border-slate-700/60 shadow-xl space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-700/60 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-white">Cashfree Live Gateway Inspector</h3>
+                      <p className="text-[11px] text-slate-400">Query Cashfree production servers directly to inspect transaction status</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 font-bold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>API v2023-08-01 Active</span>
+                  </span>
+                </div>
+
+                <form onSubmit={handleQueryCashfreeLive} className="flex flex-col sm:flex-row gap-2.5">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="Paste Cashfree Order ID (e.g. order_174... or user_...)"
+                      value={cashfreeQueryInput}
+                      onChange={(e) => setCashfreeQueryInput(e.target.value)}
+                      className="w-full px-4 py-2.5 rounded-xl bg-slate-800/90 border border-slate-700 text-white font-mono text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={cashfreeQueryLoading}
+                    className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-sm transition shrink-0"
+                  >
+                    {cashfreeQueryLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                    <span>{cashfreeQueryLoading ? 'Querying Gateway...' : 'Query Cashfree Live'}</span>
+                  </button>
+                </form>
+
+                {/* Gateway Inspection Result */}
+                {cashfreeQueryResult && (
+                  <div className="p-4 bg-slate-800/80 border border-slate-700 rounded-2xl text-xs space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
+                      <span className="font-bold text-slate-300">Live Gateway Query Response:</span>
+                      <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[10px] ${
+                        cashfreeQueryResult.verification?.payment_status === 'PAID' 
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' 
+                          : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                      }`}>
+                        Status: {cashfreeQueryResult.verification?.payment_status || 'NOT PAID / PENDING'}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
+                      <div>
+                        <span className="text-slate-400 block">Order ID:</span>
+                        <strong className="font-mono text-white truncate block">{cashfreeQueryResult.order_id || cashfreeQueryInput}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Amount / Currency:</span>
+                        <strong className="text-white">₹{cashfreeQueryResult.verification?.order_amount || 200}.00 INR</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">PG Status:</span>
+                        <strong className="text-white">{cashfreeQueryResult.verification?.payment_status || 'PENDING'}</strong>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block">Database Status:</span>
+                        <strong className="text-emerald-400">{cashfreeQueryResult.db_updated ? 'Synchronized' : 'Recorded'}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Transactions Ledger Table */}
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-extrabold text-sm text-slate-900">Recorded Transactions Ledger</h3>
+                  <span className="text-xs font-bold text-slate-500 font-mono">
+                    Total: ₹{stats?.total_collection || 0}.00 INR
+                  </span>
+                </div>
+
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
                         <th className="py-3.5 px-6">Cashfree Order ID</th>
-                        <th className="py-3.5 px-6">Student Name &amp; Email</th>
-                        <th className="py-3.5 px-6">Amount</th>
-                        <th className="py-3.5 px-6">Payment Method</th>
+                        <th className="py-3.5 px-6">Student Contact</th>
+                        <th className="py-3.5 px-6">Gross Amount</th>
+                        <th className="py-3.5 px-6">Method / Gateway</th>
                         <th className="py-3.5 px-6">PG Status</th>
                         <th className="py-3.5 px-6 text-right">Actions</th>
                       </tr>
@@ -1414,30 +2204,49 @@ export const AdminDashboard = ({ onLogout }) => {
                     <tbody className="divide-y divide-slate-100">
                       {paymentsList.map(pay => (
                         <tr key={pay.id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-4 px-6 font-mono font-bold text-slate-900">
-                            {pay.order_id}
+                          <td className="py-4 px-6">
+                            <div className="font-mono font-bold text-slate-900 flex items-center gap-1.5">
+                              <span className="truncate max-w-[150px]">{pay.order_id}</span>
+                              <button
+                                onClick={() => copyToClipboard(pay.order_id, `order_${pay.id}`)}
+                                className="text-slate-400 hover:text-slate-700"
+                                title="Copy Order ID"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <div className="text-[10px] text-slate-400 font-mono">
+                              {pay.created_at ? new Date(pay.created_at).toLocaleDateString() : 'Recent'}
+                            </div>
                           </td>
                           <td className="py-4 px-6">
                             <div className="font-bold text-slate-900">{pay.student_name}</div>
-                            <div className="text-[10px] text-slate-400">{pay.student_email}</div>
+                            <div className="text-[11px] text-slate-500 font-mono">{pay.student_email}</div>
                           </td>
                           <td className="py-4 px-6 font-bold text-slate-900">
                             ₹{pay.amount || 200}.00 {pay.currency || 'INR'}
                           </td>
                           <td className="py-4 px-6 text-slate-600">
-                            {pay.payment_method || 'Online PG'}
+                            <span className="font-semibold text-slate-800">{pay.payment_method || 'Cashfree Online PG'}</span>
                           </td>
                           <td className="py-4 px-6">
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                              pay.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                            <span className={`px-2.5 py-0.5 rounded-full font-extrabold text-[10px] inline-flex items-center gap-1 ${
+                              pay.status === 'PAID' 
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                : 'bg-amber-100 text-amber-800 border border-amber-200'
                             }`}>
-                              {pay.status}
+                              {pay.status === 'PAID' ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
+                              <span>{pay.status}</span>
                             </span>
                           </td>
                           <td className="py-4 px-6 text-right">
                             <button
-                              onClick={() => handleManualVerifyOrder(pay.order_id)}
+                              onClick={() => {
+                                setCashfreeQueryInput(pay.order_id);
+                                handleQueryCashfreeLive(null, pay.order_id);
+                              }}
                               className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
+                              title="Query Cashfree Gateway Status Live"
                             >
                               Check PG Status
                             </button>
@@ -1609,76 +2418,235 @@ export const AdminDashboard = ({ onLogout }) => {
           )}
 
           {/* ========================================================
-              VIEW 12: SETTINGS & AUDIT LOGS (SECTION 34)
+              VIEW 12: SETTINGS, CLOUD BACKUPS & SECURITY (SECTION 34)
           ======================================================== */}
           {activeView === 'settings' && (
             <div className="space-y-8">
               
-              {/* Portal Settings Form */}
-              <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-xs space-y-5">
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                  <Settings className="w-5 h-5 text-sky-600" />
-                  <h3 className="text-base font-bold text-slate-900">Portal &amp; Batch Configuration</h3>
+              {/* Top Row: Portal Settings + Cloud Database Operations */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                {/* 1. Portal Settings Form */}
+                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-5 h-5 text-sky-600" />
+                      <h3 className="text-base font-bold text-slate-900">Portal &amp; Batch Parameters</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400">Live Config</span>
+                  </div>
+
+                  <form onSubmit={handleSavePortalSettings} className="space-y-4 text-xs">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">Official Batch 1 WhatsApp Group URL</label>
+                        <a
+                          href={whatsappUrlInput}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-emerald-600 hover:underline flex items-center gap-1"
+                        >
+                          <span>Test Link</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                      <input
+                        type="url"
+                        required
+                        value={whatsappUrlInput}
+                        onChange={(e) => setWhatsappUrlInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Batch Start Announcement Banner Text
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={startNoticeInput}
+                        onChange={(e) => setStartNoticeInput(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Registration Fee (INR)
+                      </label>
+                      <input
+                        type="number"
+                        required
+                        value={regFeeInput}
+                        onChange={(e) => setRegFeeInput(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition"
+                    >
+                      <Save className="w-3.5 h-3.5" />
+                      <span>Save Parameters to Database</span>
+                    </button>
+                  </form>
                 </div>
 
-                <form onSubmit={handleSavePortalSettings} className="space-y-4 max-w-xl text-xs">
+                {/* 2. Cloud Database Operations & Disaster Recovery */}
+                <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-5 h-5 text-purple-600" />
+                      <h3 className="text-base font-bold text-slate-900">Cloud Sync &amp; Disaster Recovery</h3>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Supabase Ready
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-slate-500">
+                    Dual-persistence system mirrors local SQLite state to cloud Supabase PostgreSQL in real-time. Manual force-sync controls are available below:
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={handleTriggerSupabasePush}
+                      disabled={cloudSyncLoading}
+                      className="p-3.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition disabled:opacity-50 text-left"
+                    >
+                      <UploadCloud className="w-5 h-5 text-sky-600 shrink-0" />
+                      <div>
+                        <div className="font-extrabold">Push to Cloud</div>
+                        <div className="text-[10px] font-normal text-sky-600">Sync all SQLite to Supabase</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={handleTriggerSupabasePull}
+                      disabled={cloudSyncLoading}
+                      className="p-3.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition disabled:opacity-50 text-left"
+                    >
+                      <DownloadCloud className="w-5 h-5 text-indigo-600 shrink-0" />
+                      <div>
+                        <div className="font-extrabold">Pull from Cloud</div>
+                        <div className="text-[10px] font-normal text-indigo-600">Restore cloud records</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={handleExportBackupJson}
+                      className="p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition text-left"
+                    >
+                      <Database className="w-5 h-5 text-slate-600 shrink-0" />
+                      <div>
+                        <div className="font-extrabold">Export JSON Backup</div>
+                        <div className="text-[10px] font-normal text-slate-500">Complete database snapshot</div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={handleExportPaymentsCsv}
+                      className="p-3.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition text-left"
+                    >
+                      <Download className="w-5 h-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <div className="font-extrabold">Export Payments CSV</div>
+                        <div className="text-[10px] font-normal text-emerald-600">Financial transactions ledger</div>
+                      </div>
+                    </button>
+                  </div>
+
+                  {cloudSyncStats && (
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-600">
+                      Synced {cloudSyncStats.students || 0} students, {cloudSyncStats.registrations || 0} applications, {cloudSyncStats.offer_letters || 0} offer letters to Supabase.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Security & Admin Password Management Card */}
+              <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <Lock className="w-5 h-5 text-amber-600" />
+                    <h3 className="text-base font-bold text-slate-900">Administrator Security &amp; Credentials</h3>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400 font-mono">admin@skyrovix.com</span>
+                </div>
+
+                {adminPasswordStatus && (
+                  <div className={`p-3 rounded-xl text-xs font-semibold flex items-center gap-2 ${
+                    adminPasswordStatus.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}>
+                    {adminPasswordStatus.success ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <AlertCircle className="w-4 h-4 text-rose-600" />}
+                    <span>{adminPasswordStatus.message}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleChangeAdminPassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Official Batch 1 WhatsApp Group Invitation URL
-                    </label>
+                    <label className="block font-bold text-slate-700 mb-1">Current Password</label>
                     <input
-                      type="url"
+                      type="password"
                       required
-                      value={whatsappUrlInput}
-                      onChange={(e) => setWhatsappUrlInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      placeholder="••••••••••••"
+                      value={adminPasswordForm.currentPassword}
+                      onChange={(e) => setAdminPasswordForm({ ...adminPasswordForm, currentPassword: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Batch Start Public Announcement Notice
-                    </label>
-                    <textarea
-                      rows={2}
-                      required
-                      value={startNoticeInput}
-                      onChange={(e) => setStartNoticeInput(e.target.value)}
-                      className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Registration Fee (INR)
-                    </label>
+                    <label className="block font-bold text-slate-700 mb-1">New Password (min 6 chars)</label>
                     <input
-                      type="number"
+                      type="password"
                       required
-                      value={regFeeInput}
-                      onChange={(e) => setRegFeeInput(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      minLength={6}
+                      placeholder="••••••••••••"
+                      value={adminPasswordForm.newPassword}
+                      onChange={(e) => setAdminPasswordForm({ ...adminPasswordForm, newPassword: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
                     />
                   </div>
 
-                  <button
-                    type="submit"
-                    className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Save Portal Settings</span>
-                  </button>
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Confirm New Password</label>
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      placeholder="••••••••••••"
+                      value={adminPasswordForm.confirmPassword}
+                      onChange={(e) => setAdminPasswordForm({ ...adminPasswordForm, confirmPassword: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-3 pt-1">
+                    <button
+                      type="submit"
+                      disabled={adminPasswordLoading}
+                      className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition"
+                    >
+                      {adminPasswordLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Lock className="w-3.5 h-3.5" />}
+                      <span>{adminPasswordLoading ? 'Updating Password...' : 'Change Administrator Password'}</span>
+                    </button>
+                  </div>
                 </form>
               </div>
 
               {/* Complete Audit Logs Table (Section 34) */}
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden space-y-4">
-                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h3 className="font-extrabold text-sm text-slate-900">Administrative Audit Trails</h3>
                     <p className="text-xs text-slate-500">Immutable ledger tracking security operations, approvals, revocations, and configuration changes</p>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">
+                  <span className="text-[10px] font-bold text-slate-500 font-mono bg-slate-100 px-2.5 py-1 rounded-full">
                     Total Events: {auditLogsList.length}
                   </span>
                 </div>
@@ -2173,6 +3141,377 @@ export const AdminDashboard = ({ onLogout }) => {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: MANUAL PAYMENT OVERRIDE MODAL
+      ======================================================== */}
+      {showManualPayModal && manualPayTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 text-left text-slate-800 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">Manual Payment Confirmation</span>
+                  <h3 className="text-base font-extrabold text-slate-900">Confirm Student Enrollment</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowManualPayModal(false); setManualPayTarget(null); }} 
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Student Name:</span>
+                <strong className="text-slate-900">{manualPayTarget.full_name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Email:</span>
+                <strong className="text-slate-700 font-mono text-[11px]">{manualPayTarget.email}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Mobile:</span>
+                <strong className="text-slate-700">{manualPayTarget.mobile || '—'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">College / Dept:</span>
+                <span className="text-slate-700 truncate max-w-[220px]">{manualPayTarget.college} ({manualPayTarget.department || 'FSD'})</span>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitManualPayment} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Fee Amount (INR)</label>
+                <input
+                  type="number"
+                  required
+                  value={manualPayForm.amount}
+                  onChange={(e) => setManualPayForm({ ...manualPayForm, amount: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Payment Method / Channel</label>
+                <select
+                  value={manualPayForm.paymentMethod}
+                  onChange={(e) => setManualPayForm({ ...manualPayForm, paymentMethod: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                >
+                  <option value="MANUAL_CASH_UPI">Direct UPI / QR Code Transfer</option>
+                  <option value="OFFLINE_CASH">Cash Deposit / Counter Payment</option>
+                  <option value="BANK_NEFT_IMPS">Direct Bank NEFT / IMPS Transfer</option>
+                  <option value="ADMIN_SPONSORED">Admin Scholarship / Fee Waiver</option>
+                  <option value="GATEWAY_RECONCILED">Gateway Reconciled (Cashfree Verified)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Audit Reference / Transaction ID / Notes</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. UPI Ref 41029384729 or Counter Receipt #104"
+                  value={manualPayForm.notes}
+                  onChange={(e) => setManualPayForm({ ...manualPayForm, notes: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-50/60 border border-emerald-100 rounded-xl space-y-1 text-[11px] text-emerald-900">
+                <div className="font-bold flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Automatic Production Actions Triggered:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-emerald-800">
+                  <li>Marks student and application status as <strong>PAID &amp; CONFIRMED</strong></li>
+                  <li>Generates official <strong>Offer Letter</strong> with verification code if not yet issued</li>
+                  <li>Unlocks student dashboard to Step 2 (Offer Letter) and Step 3 (Internship)</li>
+                  <li>Syncs change directly to Supabase Cloud &amp; records immutable audit log</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={manualPayLoading}
+                  className="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition"
+                >
+                  {manualPayLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                  <span>{manualPayLoading ? 'Processing Override...' : 'Confirm & Enroll Student'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowManualPayModal(false); setManualPayTarget(null); }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: RESET STUDENT PASSWORD MODAL
+      ======================================================== */}
+      {showResetPassModal && resetPassTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 text-left text-slate-800 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                  <Key className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-600">Student Account Security</span>
+                  <h3 className="text-base font-extrabold text-slate-900">Reset Student Password</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowResetPassModal(false); setResetPassTarget(null); }} 
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Student:</span>
+                <strong className="text-slate-900">{resetPassTarget.full_name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Email:</span>
+                <strong className="text-slate-700 font-mono text-[11px]">{resetPassTarget.email}</strong>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmitResetPassword} className="space-y-4 text-xs">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700">New Password</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPass}
+                    className="text-[10px] font-bold text-sky-600 hover:underline flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>Generate Random</span>
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  minLength={6}
+                  placeholder="Enter minimum 6 characters..."
+                  value={resetPassInput}
+                  onChange={(e) => setResetPassInput(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                />
+              </div>
+
+              <p className="text-[11px] text-slate-500">
+                The new password will be encrypted with bcrypt. The student will be able to log in with this new password immediately and will receive an in-app notice.
+              </p>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={resetPassLoading}
+                  className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition"
+                >
+                  {resetPassLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                  <span>{resetPassLoading ? 'Updating Password...' : 'Save New Password'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowResetPassModal(false); setResetPassTarget(null); }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: EDIT STUDENT PROFILE DETAILS MODAL
+      ======================================================== */}
+      {showEditStudentModal && editStudentForm.id && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto text-left text-slate-800 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-sky-600">Student Record Management</span>
+                  <h3 className="text-base font-extrabold text-slate-900">Edit Student Profile Details</h3>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowEditStudentModal(false)} 
+                className="text-slate-400 hover:text-slate-700 font-bold p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitEditStudent} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Full Legal Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editStudentForm.full_name}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, full_name: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Mobile Contact</label>
+                  <input
+                    type="tel"
+                    required
+                    value={editStudentForm.mobile}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, mobile: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">College / University</label>
+                  <input
+                    type="text"
+                    required
+                    value={editStudentForm.college}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, college: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Department</label>
+                  <input
+                    type="text"
+                    required
+                    value={editStudentForm.department}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, department: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Degree</label>
+                  <input
+                    type="text"
+                    value={editStudentForm.degree}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, degree: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Year of Study</label>
+                  <input
+                    type="text"
+                    value={editStudentForm.year_of_study}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, year_of_study: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={editStudentForm.city}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, city: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">State</label>
+                  <input
+                    type="text"
+                    value={editStudentForm.state}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, state: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Skill Level</label>
+                  <select
+                    value={editStudentForm.skill_level}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, skill_level: e.target.value })}
+                    className="w-full p-2 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  >
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Account Active Status</label>
+                  <select
+                    value={editStudentForm.is_active}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, is_active: parseInt(e.target.value, 10) })}
+                    className="w-full p-2 rounded-xl border border-slate-300 font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  >
+                    <option value={1}>Active</option>
+                    <option value={0}>Deactivated</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">GitHub Profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://github.com/username"
+                    value={editStudentForm.github_profile}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, github_profile: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-[11px] focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">LinkedIn Profile URL</label>
+                  <input
+                    type="url"
+                    placeholder="https://linkedin.com/in/username"
+                    value={editStudentForm.linkedin_profile}
+                    onChange={(e) => setEditStudentForm({ ...editStudentForm, linkedin_profile: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-[11px] focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="submit"
+                  disabled={editStudentLoading}
+                  className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-sm flex items-center justify-center gap-2 transition"
+                >
+                  {editStudentLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>{editStudentLoading ? 'Saving...' : 'Save Student Changes'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowEditStudentModal(false)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

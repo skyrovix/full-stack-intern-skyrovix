@@ -3050,6 +3050,239 @@ app.get('/api/admin/audit-logs', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Admin: Manual Payment Override & Instant Confirmation
+app.post('/api/admin/students/:id/manual-payment', authenticateAdmin, async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const { amount = 200, notes = 'Manual Admin Approval / Offline Payment', payment_method = 'MANUAL_OVERRIDE' } = req.body;
+    
+    const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [studentId]);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    let registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ? AND batch_id = 'batch-1'`, [studentId]);
+    if (!registration) {
+      const regId = `REG-B1-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      await dbRun(`INSERT INTO registrations (id, student_id, batch_id, registration_status, payment_status) VALUES (?, ?, 'batch-1', 'CONFIRMED', 'PAID')`, [regId, studentId]);
+      registration = await dbGet(`SELECT * FROM registrations WHERE id = ?`, [regId]);
+    } else {
+      await dbRun(`UPDATE registrations SET payment_status = 'PAID', registration_status = 'CONFIRMED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [registration.id]);
+    }
+
+    const orderId = `SKY-MANUAL-${Date.now()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+    const paymentId = `pay_man_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    
+    await dbRun(`
+      INSERT INTO payments (id, registration_id, order_id, cashfree_payment_id, amount, currency, status, payment_method, raw_response, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'INR', 'PAID', ?, ?, CURRENT_TIMESTAMP)
+    `, [paymentId, registration.id, orderId, `man_${Date.now()}`, Number(amount), payment_method, JSON.stringify({ notes, admin: req.admin.username })]);
+
+    await getOrCreateInternWorkflow(studentId);
+
+    // Auto-issue Offer Letter if none exists
+    const existingOL = await dbGet(`SELECT id FROM offer_letters WHERE student_id = ?`, [studentId]);
+    if (!existingOL) {
+      const olId = `OL-SKX-2026-${studentId.slice(-4).toUpperCase()}`;
+      const code = `SKX-OL-2026-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      await dbRun(`
+        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
+        VALUES (?, ?, ?, '3-Month Full Stack Development Internship', 'Full Stack Development', 'Batch 1', '1 Month', '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
+      `, [olId, studentId, student.full_name, code]);
+    }
+
+    // Sync updates to cloud
+    await pushToSupabase('students', { id: student.id, is_active: 1 });
+    await pushToSupabase('registrations', { id: registration.id, student_id: studentId, batch_id: 'batch-1', registration_status: 'CONFIRMED', payment_status: 'PAID' });
+
+    await recordAuditLog(req.admin.id, req.admin.username, 'MANUAL_PAYMENT_OVERRIDE', 'STUDENT', studentId, { amount, notes, payment_method });
+
+    res.json({ success: true, message: `Student ${student.full_name} manually confirmed & marked as PAID!` });
+  } catch (err) {
+    console.error('Manual payment error:', err);
+    res.status(500).json({ error: err.message || 'Failed to apply manual payment' });
+  }
+});
+
+// Admin: Reset Student Password
+app.put('/api/admin/students/:id/reset-password', authenticateAdmin, async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+    const student = await dbGet(`SELECT id, full_name, email FROM students WHERE id = ?`, [studentId]);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await dbRun(`UPDATE students SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [passwordHash, studentId]);
+
+    const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    await dbRun(`INSERT INTO user_notifications (id, user_id, title, message, type) VALUES (?, ?, ?, ?, ?)`,
+      [notifId, studentId, 'Password Reset by Administrator', 'Your student dashboard login password has been reset by an administrator.', 'info']);
+
+    await recordAuditLog(req.admin.id, req.admin.username, 'RESET_STUDENT_PASSWORD', 'STUDENT', studentId, { email: student.email });
+
+    res.json({ success: true, message: `Password for ${student.full_name} reset successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to reset password' });
+  }
+});
+
+// Admin: Edit Student Details
+app.put('/api/admin/students/:id/details', authenticateAdmin, async (req, res) => {
+  try {
+    const studentId = req.params.id;
+    const { full_name, mobile, college, degree, department, year_of_study, city, skill_level, github_url, linkedin_url } = req.body;
+    
+    const student = await dbGet(`SELECT id FROM students WHERE id = ?`, [studentId]);
+    if (!student) return res.status(404).json({ error: 'Student not found' });
+
+    await dbRun(`
+      UPDATE students SET
+        full_name = COALESCE(?, full_name),
+        mobile = COALESCE(?, mobile),
+        college = COALESCE(?, college),
+        degree = COALESCE(?, degree),
+        department = COALESCE(?, department),
+        year_of_study = COALESCE(?, year_of_study),
+        city = COALESCE(?, city),
+        skill_level = COALESCE(?, skill_level),
+        github_url = COALESCE(?, github_url),
+        linkedin_url = COALESCE(?, linkedin_url),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [full_name, mobile, college, degree, department, year_of_study, city, skill_level, github_url, linkedin_url, studentId]);
+
+    await recordAuditLog(req.admin.id, req.admin.username, 'UPDATE_STUDENT_DETAILS', 'STUDENT', studentId, req.body);
+
+    res.json({ success: true, message: 'Student details updated successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to update student details' });
+  }
+});
+
+// Admin: Force Supabase Push & Pull Sync Controls
+app.post('/api/admin/sync/supabase-push', authenticateAdmin, async (req, res) => {
+  try {
+    const students = await dbAll(`SELECT * FROM students`);
+    const registrations = await dbAll(`SELECT * FROM registrations`);
+    const offerLetters = await dbAll(`SELECT * FROM offer_letters`);
+    const certificates = await dbAll(`SELECT * FROM certificates`);
+    const settings = await dbAll(`SELECT * FROM settings`);
+
+    for (const st of students) {
+      await pushToSupabase('students', st);
+    }
+    for (const r of registrations) {
+      await pushToSupabase('registrations', r);
+    }
+    for (const ol of offerLetters) {
+      await pushToSupabase('offer_letters', ol);
+    }
+    for (const c of certificates) {
+      await pushToSupabase('certificates', c);
+    }
+    for (const s of settings) {
+      await pushToSupabase('settings', s);
+    }
+
+    await recordAuditLog(req.admin.id, req.admin.username, 'FORCE_SUPABASE_PUSH', 'SYSTEM', null, { records_synced: students.length + registrations.length });
+    res.json({ success: true, message: `Successfully pushed ${students.length} students & associated records to Supabase Cloud!` });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to push to Supabase' });
+  }
+});
+
+app.post('/api/admin/sync/supabase-pull', authenticateAdmin, async (req, res) => {
+  try {
+    await pullFromSupabase(dbRun);
+    await recordAuditLog(req.admin.id, req.admin.username, 'FORCE_SUPABASE_PULL', 'SYSTEM', null, {});
+    res.json({ success: true, message: 'Successfully synchronized latest records from Supabase Cloud to local database!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to pull from Supabase' });
+  }
+});
+
+// Admin: Change Administrator Password
+app.post('/api/admin/change-password', authenticateAdmin, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const admin = await dbGet(`SELECT * FROM admins WHERE id = ?`, [req.admin.id]);
+    if (!admin) return res.status(404).json({ error: 'Admin record not found' });
+
+    const isMatch = await bcrypt.compare(currentPassword, admin.password_hash);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password does not match.' });
+    }
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await dbRun(`UPDATE admins SET password_hash = ? WHERE id = ?`, [newHash, req.admin.id]);
+
+    await recordAuditLog(req.admin.id, req.admin.username, 'CHANGE_ADMIN_PASSWORD', 'ADMIN', req.admin.id, {});
+
+    res.json({ success: true, message: 'Admin password updated successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message || 'Failed to update admin password' });
+  }
+});
+
+// Admin: Export Payments CSV
+app.get('/api/admin/export-payments-csv', authenticateAdmin, async (req, res) => {
+  try {
+    const rows = await dbAll(`
+      SELECT 
+        p.id, p.order_id, p.cashfree_payment_id, p.payment_session_id,
+        p.amount, p.currency, p.status, p.payment_method, p.created_at, p.updated_at,
+        s.full_name as student_name, s.email as student_email, s.mobile as student_mobile
+      FROM payments p
+      JOIN registrations r ON p.registration_id = r.id
+      JOIN students s ON r.student_id = s.id
+      ORDER BY p.created_at DESC
+    `);
+
+    const header = ['Payment ID', 'Order ID', 'Cashfree Payment ID', 'Amount (INR)', 'Currency', 'Status', 'Payment Method', 'Student Name', 'Email', 'Mobile', 'Created At'].join(',');
+    const lines = rows.map(r => [
+      `"${r.id}"`, `"${r.order_id}"`, `"${r.cashfree_payment_id || ''}"`, r.amount, r.currency, r.status,
+      `"${r.payment_method || ''}"`, `"${(r.student_name || '').replace(/"/g, '""')}"`, `"${r.student_email}"`, `"${r.student_mobile}"`, `"${r.created_at}"`
+    ].join(','));
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="skyrovix_payments_ledger.csv"');
+    res.send([header, ...lines].join('\n'));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to export payments CSV' });
+  }
+});
+
+// Admin: Export Full Database JSON Backup
+app.get('/api/admin/export-backup-json', authenticateAdmin, async (req, res) => {
+  try {
+    const students = await dbAll(`SELECT id, full_name, email, mobile, college, degree, department, year_of_study, city, skill_level, is_active, created_at FROM students`);
+    const registrations = await dbAll(`SELECT * FROM registrations`);
+    const payments = await dbAll(`SELECT * FROM payments`);
+    const offerLetters = await dbAll(`SELECT * FROM offer_letters`);
+    const certificates = await dbAll(`SELECT * FROM certificates`);
+    const settings = await dbAll(`SELECT * FROM settings`);
+
+    const backup = {
+      exported_at: new Date().toISOString(),
+      version: '1.0.0',
+      system: 'Skyrovix Batch 1 Platform',
+      data: { students, registrations, payments, offerLetters, certificates, settings }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="skyrovix_platform_backup_${Date.now()}.json"`);
+    res.send(JSON.stringify(backup, null, 2));
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to export backup JSON' });
+  }
+});
+
 // ==========================================
 // 10b. ADMIN WORKFLOW MANAGEMENT APIS
 // ==========================================
