@@ -46,7 +46,8 @@ import {
   Activity,
   Sparkles,
   Copy,
-  Sliders
+  Sliders,
+  Trash2
 } from 'lucide-react';
 import navLogo from '../assets/top nav bar logo.png';
 import { AdminWorkflowManagement } from './workflow/AdminWorkflowManagement';
@@ -426,6 +427,45 @@ export const AdminDashboard = ({ onLogout }) => {
     }
   };
 
+  // Restore Certificate
+  const handleRestoreCertificate = async (certId) => {
+    try {
+      const res = await fetch(`/api/admin/certificates/${certId}/restore`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Certificate restored to VALID status');
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to restore certificate');
+      }
+    } catch (e) {
+      showToast('Error restoring certificate');
+    }
+  };
+
+  // Resend Certificate Email
+  const handleResendCertEmail = async (certId) => {
+    showToast(`Sending certificate email for ${certId}...`);
+    try {
+      const res = await fetch(`/api/admin/certificates/${certId}/resend-email`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Certificate email resent successfully!');
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to resend email');
+      }
+    } catch (e) {
+      showToast('Error resending certificate email');
+    }
+  };
+
   // Generate Offer Letter
   const handleGenerateOfferLetter = async (e) => {
     e.preventDefault();
@@ -472,6 +512,45 @@ export const AdminDashboard = ({ onLogout }) => {
       }
     } catch (e) {
       showToast('Error revoking offer letter');
+    }
+  };
+
+  // Restore Offer Letter
+  const handleRestoreOfferLetter = async (olId) => {
+    try {
+      const res = await fetch(`/api/admin/offer-letters/${olId}/restore`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Offer letter restored to ACTIVE status');
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to restore offer letter');
+      }
+    } catch (e) {
+      showToast('Error restoring offer letter');
+    }
+  };
+
+  // Resend Offer Letter Email
+  const handleResendOLEmail = async (olId) => {
+    showToast(`Sending offer letter email for ${olId}...`);
+    try {
+      const res = await fetch(`/api/admin/offer-letters/${olId}/resend-email`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Offer letter email resent successfully!');
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to resend email');
+      }
+    } catch (e) {
+      showToast('Error resending offer letter email');
     }
   };
 
@@ -865,6 +944,43 @@ export const AdminDashboard = ({ onLogout }) => {
 
   const handleExportBackupJson = () => {
     window.open(`/api/admin/export-backup-json?token=${authToken}`, '_blank');
+  };
+
+  // Delete Student Account Permanently (Admin)
+  const handleDeleteUser = async (user) => {
+    const targetId = user?.id || user?.student_id || user?.user_id;
+    if (!targetId && !user?.email) return;
+
+    const identifier = targetId || user.email;
+    const displayName = user?.full_name || user?.name || user?.email || 'this student';
+    const displayEmail = user?.email ? ` (${user.email})` : '';
+
+    const confirmMessage = `WARNING: Are you sure you want to permanently delete the account for "${displayName}"${displayEmail}?\n\nThis will permanently remove:\n• Student profile and dashboard login\n• Internship applications and registrations\n• Project task submissions\n• Issued offer letters and certificates\n• Support tickets and notifications\n\nThis action cannot be undone. Proceed with permanent deletion?`;
+    
+    if (!window.confirm(confirmMessage)) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(identifier)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        showToast(data.message || `Account for ${displayName} deleted.`);
+        if (selectedUserDetail?.user?.id === targetId || selectedUserDetail?.user?.email === user.email) {
+          setSelectedUserDetail(null);
+        }
+        if (showEditStudentModal && editStudentForm?.id === targetId) {
+          setShowEditStudentModal(false);
+        }
+        fetchAllAdminData();
+      } else {
+        showToast(data.error || 'Failed to delete user account');
+      }
+    } catch (err) {
+      showToast('Network error deleting user account');
+    }
   };
 
   // If Not Authenticated, show Login Form
@@ -1413,6 +1529,13 @@ export const AdminDashboard = ({ onLogout }) => {
                               Confirm
                             </button>
                           )}
+                          <button
+                            onClick={() => handleDeleteUser(u)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                            title="Delete Student Account"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1653,6 +1776,14 @@ export const AdminDashboard = ({ onLogout }) => {
                                 >
                                   {u.is_active !== 0 ? 'Deactivate' : 'Activate'}
                                 </button>
+
+                                <button
+                                  onClick={() => handleDeleteUser(u)}
+                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold rounded-lg transition border border-rose-200"
+                                  title="Permanently Delete Student Account"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1741,6 +1872,13 @@ export const AdminDashboard = ({ onLogout }) => {
                                 className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-xs"
                               >
                                 Reject
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUser(linkedUser || { id: app.student_id || app.user_id, full_name: app.full_name, email: app.email })}
+                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold rounded-lg transition inline-flex items-center align-middle border border-rose-200"
+                                title="Permanently Delete Account / Application"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </td>
                           </tr>
@@ -1932,10 +2070,10 @@ export const AdminDashboard = ({ onLogout }) => {
           ======================================================== */}
           {activeView === 'certificates' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900">Certificate Management ({certificatesList.length})</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Issue cryptographic verifiable certificates with auto-generated unique identifiers</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Issue cryptographic verifiable certificates, manage status, view QR codes, and trigger email dispatches</p>
                 </div>
 
                 <button
@@ -1952,57 +2090,108 @@ export const AdminDashboard = ({ onLogout }) => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">Certificate ID</th>
-                        <th className="py-3.5 px-6">Recipient Name</th>
-                        <th className="py-3.5 px-6">Program / Batch</th>
-                        <th className="py-3.5 px-6">Issue Date</th>
-                        <th className="py-3.5 px-6">Status</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
+                        <th className="py-3.5 px-5">Student</th>
+                        <th className="py-3.5 px-5">Student ID</th>
+                        <th className="py-3.5 px-5">Domain</th>
+                        <th className="py-3.5 px-5">Certificate ID</th>
+                        <th className="py-3.5 px-5">Issue Date</th>
+                        <th className="py-3.5 px-5">Status</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {certificatesList.map(cert => (
-                        <tr key={cert.id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-4 px-6 font-mono font-bold text-purple-700">
-                            {cert.id}
-                          </td>
-                          <td className="py-4 px-6 font-bold text-slate-900">
-                            {cert.student_name}
-                          </td>
-                          <td className="py-4 px-6 text-slate-600">
-                            {cert.program} • {cert.batch}
-                          </td>
-                          <td className="py-4 px-6 font-mono text-slate-500">
-                            {cert.issue_date}
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                              cert.status === 'ISSUED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {cert.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right space-x-2">
-                            <a
-                              href={`/verify/${cert.id}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1"
-                            >
-                              <span>Verify</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                            {cert.status === 'ISSUED' && (
-                              <button
-                                onClick={() => handleRevokeCertificate(cert.id)}
-                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition"
-                              >
-                                Revoke
-                              </button>
-                            )}
+                      {certificatesList.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="py-8 text-center text-slate-400">
+                            No certificates issued yet.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        certificatesList.map(cert => (
+                          <tr key={cert.id} className="hover:bg-slate-50/60 transition">
+                            <td className="py-4 px-5">
+                              <div className="font-bold text-slate-900">{cert.student_name}</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[140px]">{cert.student_email || cert.student_id}</div>
+                            </td>
+                            <td className="py-4 px-5 font-mono font-bold text-slate-700">
+                              {cert.student_id_formatted || cert.internship_id || `SKX-2026-${String(cert.student_id).slice(-4)}`}
+                            </td>
+                            <td className="py-4 px-5 font-semibold text-slate-700">
+                              {cert.domain || 'Full Stack Development'}
+                            </td>
+                            <td className="py-4 px-5 font-mono font-bold text-purple-700">
+                              {cert.certificate_id || cert.id}
+                            </td>
+                            <td className="py-4 px-5 font-mono text-slate-500">
+                              {cert.issue_date}
+                            </td>
+                            <td className="py-4 px-5">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                                cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}>
+                                {cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' ? 'REVOKED' : 'VALID'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-5 text-right space-x-1.5 whitespace-nowrap">
+                              <a
+                                href={`/api/documents/certificate/${cert.id}/view`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="View Document Canvas"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>View</span>
+                              </a>
+                              <a
+                                href={`/api/documents/certificate/${cert.id}/download`}
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="Download Document File"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Download</span>
+                              </a>
+                              <a
+                                href={`/verify/${cert.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="Open Public Verification"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                                <span>Verify</span>
+                              </a>
+                              <button
+                                onClick={() => handleResendCertEmail(cert.id)}
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="Resend Notification Email to Student"
+                              >
+                                <Send className="w-3 h-3" />
+                                <span>Resend</span>
+                              </button>
+                              {cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' ? (
+                                <button
+                                  onClick={() => handleRestoreCertificate(cert.id)}
+                                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition text-[11px]"
+                                  title="Restore Certificate to Valid Status"
+                                >
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRevokeCertificate(cert.id)}
+                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition text-[11px]"
+                                  title="Revoke Certificate"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2011,14 +2200,14 @@ export const AdminDashboard = ({ onLogout }) => {
           )}
 
           {/* ========================================================
-              VIEW 7: OFFER LETTER MANAGEMENT (SECTION 23)
+              VIEW 7: OFFER LETTER MANAGEMENT (SECTION 22)
           ======================================================== */}
           {activeView === 'offer-letters' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900">Offer Letter Management ({offerLettersList.length})</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Generate appointment letters, track unique verification codes, and manage active status</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Generate appointment letters, track unique verification codes, monitor email delivery, and manage active status</p>
                 </div>
 
                 <button
@@ -2035,48 +2224,108 @@ export const AdminDashboard = ({ onLogout }) => {
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">Verification Code</th>
-                        <th className="py-3.5 px-6">Student Name</th>
-                        <th className="py-3.5 px-6">Track / Domain</th>
-                        <th className="py-3.5 px-6">Issue Date</th>
-                        <th className="py-3.5 px-6">Status</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
+                        <th className="py-3.5 px-5">Student</th>
+                        <th className="py-3.5 px-5">Student ID</th>
+                        <th className="py-3.5 px-5">Domain</th>
+                        <th className="py-3.5 px-5">Internship ID</th>
+                        <th className="py-3.5 px-5">Offer ID</th>
+                        <th className="py-3.5 px-5">Issue Date</th>
+                        <th className="py-3.5 px-5">Email Status</th>
+                        <th className="py-3.5 px-5">Status</th>
+                        <th className="py-3.5 px-5 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {offerLettersList.map(ol => (
-                        <tr key={ol.id} className="hover:bg-slate-50/60 transition">
-                          <td className="py-4 px-6 font-mono font-bold text-sky-700">
-                            {ol.verification_code}
-                          </td>
-                          <td className="py-4 px-6 font-bold text-slate-900">
-                            {ol.student_name}
-                          </td>
-                          <td className="py-4 px-6 text-slate-600">
-                            {ol.domain} ({ol.duration})
-                          </td>
-                          <td className="py-4 px-6 font-mono text-slate-500">
-                            {ol.issue_date}
-                          </td>
-                          <td className="py-4 px-6">
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                              ol.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                            }`}>
-                              {ol.status}
-                            </span>
-                          </td>
-                          <td className="py-4 px-6 text-right space-x-2">
-                            {ol.status === 'ACTIVE' && (
-                              <button
-                                onClick={() => handleRevokeOfferLetter(ol.id)}
-                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition"
-                              >
-                                Revoke
-                              </button>
-                            )}
+                      {offerLettersList.length === 0 ? (
+                        <tr>
+                          <td colSpan="9" className="py-8 text-center text-slate-400">
+                            No offer letters issued yet.
                           </td>
                         </tr>
-                      ))}
+                      ) : (
+                        offerLettersList.map(ol => (
+                          <tr key={ol.id} className="hover:bg-slate-50/60 transition">
+                            <td className="py-4 px-5">
+                              <div className="font-bold text-slate-900">{ol.student_name}</div>
+                              <div className="text-[10px] text-slate-400 truncate max-w-[140px]">{ol.student_email || ol.student_id}</div>
+                            </td>
+                            <td className="py-4 px-5 font-mono font-bold text-slate-700">
+                              {ol.student_id_formatted || `SKX-2026-${String(ol.student_id).slice(-4)}`}
+                            </td>
+                            <td className="py-4 px-5 font-semibold text-slate-700">
+                              {ol.domain || 'Cloud Computing'}
+                            </td>
+                            <td className="py-4 px-5 font-mono font-bold text-slate-800">
+                              {ol.internship_id || `SKX-INT-2026-${String(ol.student_id).slice(-4)}`}
+                            </td>
+                            <td className="py-4 px-5 font-mono font-bold text-sky-700">
+                              {ol.verification_code || ol.offer_letter_id || ol.id}
+                            </td>
+                            <td className="py-4 px-5 font-mono text-slate-500">
+                              {ol.issue_date}
+                            </td>
+                            <td className="py-4 px-5">
+                              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                                ol.email_status === 'SENT' ? 'bg-emerald-100 text-emerald-800' : ol.email_status === 'FAILED' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {ol.email_status || 'SENT'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-5">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                                ol.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                              }`}>
+                                {ol.status || 'ACTIVE'}
+                              </span>
+                            </td>
+                            <td className="py-4 px-5 text-right space-x-1.5 whitespace-nowrap">
+                              <a
+                                href={`/api/documents/offer-letter/${ol.id}/view`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="View Document Canvas"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>View</span>
+                              </a>
+                              <a
+                                href={`/api/documents/offer-letter/${ol.id}/download`}
+                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="Download Document File"
+                              >
+                                <Download className="w-3 h-3" />
+                                <span>Download</span>
+                              </a>
+                              <button
+                                onClick={() => handleResendOLEmail(ol.id)}
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
+                                title="Resend Notification Email to Student"
+                              >
+                                <Send className="w-3 h-3" />
+                                <span>Resend</span>
+                              </button>
+                              {ol.status === 'REVOKED' ? (
+                                <button
+                                  onClick={() => handleRestoreOfferLetter(ol.id)}
+                                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition text-[11px]"
+                                  title="Restore Offer Letter"
+                                >
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRevokeOfferLetter(ol.id)}
+                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition text-[11px]"
+                                  title="Revoke Offer Letter"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        ))
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -2723,6 +2972,112 @@ export const AdminDashboard = ({ onLogout }) => {
               <p className="p-3 bg-slate-50 rounded-xl text-slate-600 leading-relaxed">{selectedUserDetail.user.bio || 'No bio provided'}</p>
             </div>
 
+            {/* Section 23: Complete 10-Stage Internship Pipeline Timeline */}
+            <div className="space-y-3 text-xs pt-1 border-t border-slate-100">
+              <div className="flex items-center justify-between">
+                <h4 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">
+                  Internship Progression Pipeline (10 Stages):
+                </h4>
+                <span className="text-[10px] font-mono text-slate-400">
+                  ID: {selectedUserDetail.user.student_id_formatted || `SKX-2026-${String(selectedUserDetail.user.id).slice(-4)}`}
+                </span>
+              </div>
+
+              <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/90 space-y-2.5">
+                {[
+                  {
+                    num: 1,
+                    title: 'Student Application',
+                    status: 'COMPLETED',
+                    detail: selectedUserDetail.registration?.created_at ? new Date(selectedUserDetail.registration.created_at).toLocaleDateString('en-GB') : 'Submitted',
+                    done: true
+                  },
+                  {
+                    num: 2,
+                    title: 'Application Approved',
+                    status: selectedUserDetail.registration?.registration_status === 'APPROVED' || selectedUserDetail.registration?.payment_status === 'PAID' ? 'APPROVED' : 'PENDING',
+                    detail: selectedUserDetail.registration?.payment_status === 'PAID' ? 'Confirmed & Paid' : 'Pending review',
+                    done: selectedUserDetail.registration?.registration_status === 'APPROVED' || selectedUserDetail.registration?.payment_status === 'PAID'
+                  },
+                  {
+                    num: 3,
+                    title: 'Offer Letter Generated',
+                    status: selectedUserDetail.offerLetters?.length > 0 ? 'GENERATED' : 'PENDING',
+                    detail: selectedUserDetail.offerLetters?.[0]?.verification_code || 'Awaiting generation',
+                    done: selectedUserDetail.offerLetters?.length > 0
+                  },
+                  {
+                    num: 4,
+                    title: 'Offer Letter Sent (Email)',
+                    status: selectedUserDetail.offerLetters?.[0]?.email_status === 'SENT' ? 'SENT' : selectedUserDetail.offerLetters?.length > 0 ? 'PENDING / RETRY' : 'PENDING',
+                    detail: selectedUserDetail.user.email,
+                    done: selectedUserDetail.offerLetters?.[0]?.email_status === 'SENT'
+                  },
+                  {
+                    num: 5,
+                    title: 'Internship Started',
+                    status: selectedUserDetail.registration?.internship_status === 'ACTIVE' || selectedUserDetail.registration?.internship_status === 'COMPLETED' ? 'ACTIVE' : 'UPCOMING',
+                    detail: 'Domain: ' + (selectedUserDetail.registration?.domain || 'Full Stack Development'),
+                    done: selectedUserDetail.registration?.internship_status === 'ACTIVE' || selectedUserDetail.registration?.internship_status === 'COMPLETED'
+                  },
+                  {
+                    num: 6,
+                    title: 'Tasks / Learning Modules',
+                    status: `${selectedUserDetail.trainingSubmissions?.filter(t => t.status === 'APPROVED').length || 0}/5 Modules`,
+                    detail: 'Milestone assignments',
+                    done: (selectedUserDetail.trainingSubmissions?.filter(t => t.status === 'APPROVED').length || 0) >= 5
+                  },
+                  {
+                    num: 7,
+                    title: 'Final Project Submission',
+                    status: selectedUserDetail.submissions?.length > 0 ? 'SUBMITTED' : 'NOT SUBMITTED',
+                    detail: selectedUserDetail.submissions?.[0]?.project_title || 'Capstone project deliverable',
+                    done: selectedUserDetail.submissions?.length > 0
+                  },
+                  {
+                    num: 8,
+                    title: 'Final Project Review',
+                    status: selectedUserDetail.submissions?.some(s => s.status === 'APPROVED') ? 'APPROVED' : selectedUserDetail.submissions?.length > 0 ? 'UNDER REVIEW' : 'PENDING',
+                    detail: 'Mentor board review',
+                    done: selectedUserDetail.submissions?.some(s => s.status === 'APPROVED')
+                  },
+                  {
+                    num: 9,
+                    title: 'Completion Eligibility Check',
+                    status: selectedUserDetail.certificates?.length > 0 ? 'VERIFIED & CLEARED' : 'EVALUATION PENDING',
+                    detail: 'All criteria satisfied',
+                    done: selectedUserDetail.certificates?.length > 0
+                  },
+                  {
+                    num: 10,
+                    title: 'Certificate Generated & Sent',
+                    status: selectedUserDetail.certificates?.length > 0 ? (selectedUserDetail.certificates[0].certificate_id || selectedUserDetail.certificates[0].id) : 'NOT ISSUED',
+                    detail: selectedUserDetail.certificates?.[0]?.email_status === 'SENT' ? 'Sent to Student' : 'Ready',
+                    done: selectedUserDetail.certificates?.length > 0
+                  }
+                ].map((step) => (
+                  <div key={step.num} className="flex items-center justify-between text-xs py-1 border-b border-slate-100 last:border-b-0">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
+                        step.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {step.num}
+                      </div>
+                      <span className="font-semibold text-slate-800">{step.title}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-right">
+                      <span className="text-[10px] text-slate-400 hidden sm:inline">{step.detail}</span>
+                      <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] ${
+                        step.done ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {step.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="space-y-2 text-xs">
               <h4 className="font-bold text-slate-900">Offer Letters &amp; Certificates:</h4>
               <div className="flex gap-2">
@@ -2735,12 +3090,24 @@ export const AdminDashboard = ({ onLogout }) => {
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedUserDetail(null)}
-              className="w-full py-2.5 bg-slate-900 text-white font-bold rounded-xl text-xs"
-            >
-              Close
-            </button>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => handleDeleteUser(selectedUserDetail.user)}
+                className="flex-1 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition border border-rose-200"
+                title="Permanently Delete Student Account"
+              >
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <span>Delete Account</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedUserDetail(null)}
+                className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -3502,6 +3869,17 @@ export const AdminDashboard = ({ onLogout }) => {
                 >
                   {editStudentLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   <span>{editStudentLoading ? 'Saving...' : 'Save Student Changes'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteUser({ id: editStudentForm.id, full_name: editStudentForm.full_name, email: editStudentForm.email });
+                  }}
+                  className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl text-xs flex items-center gap-1.5 transition border border-rose-200"
+                  title="Permanently Delete Student Account"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Delete</span>
                 </button>
                 <button
                   type="button"

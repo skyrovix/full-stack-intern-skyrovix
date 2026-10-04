@@ -476,15 +476,65 @@ export async function initDb() {
   `);
 
   // Safe column additions to students
-  try {
-    await dbRun(`ALTER TABLE students ADD COLUMN bio TEXT`);
-  } catch (e) {}
-  try {
-    await dbRun(`ALTER TABLE students ADD COLUMN is_active INTEGER DEFAULT 1`);
-  } catch (e) {}
-  try {
-    await dbRun(`ALTER TABLE students ADD COLUMN avatar_url TEXT`);
-  } catch (e) {}
+  try { await dbRun(`ALTER TABLE students ADD COLUMN bio TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE students ADD COLUMN is_active INTEGER DEFAULT 1`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE students ADD COLUMN avatar_url TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE students ADD COLUMN student_id_formatted TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE students ADD COLUMN application_status TEXT DEFAULT 'APPROVED'`); } catch (e) {}
+
+  // Safe column additions to registrations
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN internship_id TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN domain TEXT DEFAULT 'Full Stack Development'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN duration TEXT DEFAULT '1 Month'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN start_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN end_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN mentor TEXT DEFAULT 'Technical Mentor Board'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN internship_status TEXT DEFAULT 'ACTIVE'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN final_project_status TEXT DEFAULT 'NOT_STARTED'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN final_report_status TEXT DEFAULT 'NOT_STARTED'`); } catch (e) {}
+
+  // Safe column additions to offer_letters
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN offer_letter_id TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN internship_id TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN role TEXT DEFAULT 'Virtual Intern'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN start_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN end_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN mode TEXT DEFAULT 'Remote / Virtual (Task-Based, Flexible Hours)'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN mentor TEXT DEFAULT 'Technical Mentor Board'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN pdf_url TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN email_status TEXT DEFAULT 'SENT'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN email_sent_at DATETIME`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN downloaded_at DATETIME`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE offer_letters ADD COLUMN viewed_at DATETIME`); } catch (e) {}
+
+  // Safe column additions to certificates
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN certificate_id TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN internship_id TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN domain TEXT DEFAULT 'Full Stack Development'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN start_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN end_date TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN certificate_status TEXT DEFAULT 'VALID'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN pdf_url TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN qr_code_data TEXT`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN grade TEXT DEFAULT 'A+'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN email_status TEXT DEFAULT 'SENT'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN email_sent_at DATETIME`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE certificates ADD COLUMN downloaded_at DATETIME`); } catch (e) {}
+
+  // Email Logs table
+  await dbRun(`
+    CREATE TABLE IF NOT EXISTS email_logs (
+      id TEXT PRIMARY KEY,
+      recipient_email TEXT NOT NULL,
+      recipient_name TEXT,
+      subject TEXT NOT NULL,
+      email_type TEXT NOT NULL,
+      status TEXT DEFAULT 'SENT',
+      reference_id TEXT,
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 
   // Seed default batch
   const existingBatch = await dbGet(`SELECT id FROM batches WHERE id = 'batch-1'`);

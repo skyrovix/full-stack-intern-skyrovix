@@ -52,6 +52,10 @@ import {
 import navLogo from '../assets/top nav bar logo.png';
 import sealImg from '../assets/seal.jpg';
 import signatureImg from '../assets/hari sig.jpeg';
+import maheshSig from '../assets/mahesh sig.jpeg';
+import msmeLogo from '../assets/msme.png';
+import vinixLogo from '../assets/vinix.png';
+import yrLogo from '../assets/yr-tech logo.png';
 import { StudentGuideView } from './StudentGuideView';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 
@@ -72,6 +76,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   const [paymentsList, setPaymentsList] = useState([]);
   const [notificationsList, setNotificationsList] = useState([]);
   const [supportTicketsList, setSupportTicketsList] = useState([]);
+  const [certificateEligibility, setCertificateEligibility] = useState(null);
   
   // 3-Stage Internship Workflow State
   const [workflowData, setWorkflowData] = useState(null);
@@ -262,6 +267,17 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
         if (wf.success && wf.workflow) {
           setWorkflowData(wf.workflow);
         }
+      }
+
+      // Check live certificate eligibility
+      try {
+        const eligRes = await fetch(`/api/user/certificate-eligibility?studentId=${sId}`);
+        if (eligRes.ok) {
+          const eligData = await eligRes.json();
+          setCertificateEligibility(eligData);
+        }
+      } catch (eligErr) {
+        console.warn('Could not load eligibility checklist:', eligErr);
       }
 
       setLoading(false);
@@ -883,7 +899,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   // Sidebar Menu Items Definition (Section 4)
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Home },
-    { id: 'guide', label: 'Training & Student Guide', icon: BookOpen },
+    { id: 'guide', label: 'Student Guide', icon: BookOpen },
     { id: 'profile', label: 'My Profile', icon: User },
     { id: 'internship', label: 'My Internship', icon: Briefcase },
     { id: 'applications', label: 'Applications', icon: FileText },
@@ -1019,7 +1035,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
               <span className="text-xs font-semibold text-slate-400">User Dashboard</span>
               <span className="text-xs text-slate-300">/</span>
               <span className="text-xs font-bold text-slate-900 capitalize">
-                {activeView === 'guide' ? 'Training & Student Guide' : activeView.replace('-', ' ')}
+                {activeView === 'guide' ? 'Student Guide' : activeView.replace('-', ' ')}
               </span>
             </div>
           </div>
@@ -1316,7 +1332,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                           className="px-4 py-2 rounded-full bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
                         >
                           <BookOpen className="w-3.5 h-3.5 text-sky-200" />
-                          <span>Training &amp; Student Guide</span>
+                          <span>Student Guide</span>
                         </button>
                       </div>
 
@@ -1384,7 +1400,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                 </div>
               </section>
 
-              {/* 2. Training Curriculum & Student Guide Quick Hub */}
+              {/* 2. Student Guide Quick Hub */}
               <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xs relative overflow-hidden">
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                   <div className="flex items-start gap-4">
@@ -1399,7 +1415,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                         <span className="text-xs font-bold text-slate-500">20 Modules • 15 Parts</span>
                       </div>
                       <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Training &amp; Detailed Student Guide
+                        Student Guide
                       </h3>
                       <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
                         AI Tools → Code → Backend → Database → GitHub → Vercel → Domain • Master all 20 modules with guided practicals, prompt templates, and live deployment steps.
@@ -2056,7 +2072,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           )}
 
           {/* ========================================================
-              VIEW: TRAINING & DETAILED STUDENT GUIDE (20 MODULES)
+              VIEW: STUDENT GUIDE (20 MODULES)
           ======================================================== */}
           {(activeView === 'guide' || activeView === 'training' || activeView === 'workflow') && (
             <div className="space-y-6">
@@ -2382,66 +2398,157 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           })()}
 
           {/* ========================================================
-              VIEW 6: CERTIFICATES (SECTION 10)
+              VIEW 6: CERTIFICATES (SECTION 10, 12, 13, 14, 33)
           ======================================================== */}
           {activeView === 'certificates' && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900">Internship Certificates</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Official digital verifiable credentials authenticated by Skyrovix Technologies</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Official digital verifiable completion credentials authenticated by Skyrovix Technologies</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {certificatesList.map(cert => (
-                  <div key={cert.id} className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-5">
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              {certificatesList.length === 0 ? (
+                <div className="bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/90 shadow-sm space-y-6">
+                  <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200 shrink-0">
+                      <Lock className="w-6 h-6" />
+                    </div>
+                    <div>
                       <div className="flex items-center gap-2">
-                        <Award className="w-5 h-5 text-emerald-600" />
-                        <span className="text-xs font-bold text-slate-900">Certificate of Completion</span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[10px] font-black tracking-wider uppercase">
+                          LOCKED UNTIL COMPLETION
+                        </span>
                       </div>
-                      <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
-                        {cert.status || 'ISSUED'}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="text-xs text-slate-400 font-mono">CREDENTIAL ID:</div>
-                      <div className="text-base font-extrabold text-slate-900 font-mono">{cert.id}</div>
-                      <div className="text-xs text-slate-600 pt-1">
-                        Awarded to <strong className="text-slate-900">{cert.student_name || internName}</strong> for successfully completing the <strong>{cert.program || '3-Month Full Stack Development Internship'}</strong>.
-                      </div>
-                      <div className="text-xs text-slate-500 pt-1">
-                        Issue Date: <span className="font-semibold text-slate-700">{cert.issue_date || '26 Oct 2026'}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2.5 pt-2">
-                      <button
-                        onClick={() => onVerifyCert ? onVerifyCert(cert.id) : window.open(`/verify/${cert.id}`, '_blank')}
-                        className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
-                      >
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                        <span>Verify Credential</span>
-                      </button>
-
-                      <button
-                        onClick={() => window.print()}
-                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Download</span>
-                      </button>
+                      <h3 className="text-base font-extrabold text-slate-900 mt-1">Official Certificate Criteria In Progress</h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Your official verifiable certificate is automatically unlocked and issued upon completing all 4 milestone stages below.</p>
                     </div>
                   </div>
-                ))}
-              </div>
+
+                  {/* Real-time Eligibility Checkpoints Checklist */}
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">Internship Milestone Checkpoints:</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition ${
+                        internshipData?.payment_status === 'PAID' ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}>
+                        <div>
+                          <div className="font-extrabold">1. Internship Registration</div>
+                          <div className="text-[11px] opacity-80">Requires PAID &amp; CONFIRMED status</div>
+                        </div>
+                        {internshipData?.payment_status === 'PAID' ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Clock className="w-5 h-5 text-slate-400" />}
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition ${
+                        workflowData?.stage1_status === 'APPROVED' ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}>
+                        <div>
+                          <div className="font-extrabold">2. Stage 1 Announcement</div>
+                          <div className="text-[11px] opacity-80">LinkedIn offer letter post approved</div>
+                        </div>
+                        {workflowData?.stage1_status === 'APPROVED' ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Clock className="w-5 h-5 text-slate-400" />}
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition ${
+                        (workflowData?.stage2_completed_modules || 0) >= 5 ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}>
+                        <div>
+                          <div className="font-extrabold">3. Technical Learning Modules</div>
+                          <div className="text-[11px] opacity-80">{workflowData?.stage2_completed_modules || 0}/5 modules completed &amp; approved</div>
+                        </div>
+                        {(workflowData?.stage2_completed_modules || 0) >= 5 ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Clock className="w-5 h-5 text-slate-400" />}
+                      </div>
+
+                      <div className={`p-4 rounded-2xl border flex items-center justify-between transition ${
+                        workflowData?.stage3_status === 'APPROVED' ? 'bg-emerald-50/60 border-emerald-200 text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-600'
+                      }`}>
+                        <div>
+                          <div className="font-extrabold">4. Capstone Project Deliverable</div>
+                          <div className="text-[11px] opacity-80">Code review &amp; mentor evaluation</div>
+                        </div>
+                        {workflowData?.stage3_status === 'APPROVED' ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Clock className="w-4 h-4 text-slate-400" />}
+                      </div>
+
+                    </div>
+                  </div>
+
+                  {certificateEligibility?.reasons && certificateEligibility.reasons.length > 0 && (
+                    <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-200 text-xs space-y-1 text-amber-900">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        <span>Action Required for Certificate Issuance:</span>
+                      </div>
+                      <ul className="list-disc list-inside space-y-0.5 text-[11px] pl-1 text-amber-800">
+                        {certificateEligibility.reasons.map((r, i) => (
+                          <li key={i}>{r}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {certificatesList.map(cert => (
+                    <div key={cert.id} className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/90 shadow-sm space-y-5">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <Award className="w-5 h-5 text-emerald-600" />
+                          <span className="text-xs font-bold text-slate-900">Certificate of Completion</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black">
+                          {cert.status || 'ISSUED'}
+                        </span>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="text-xs text-slate-400 font-mono">CREDENTIAL ID:</div>
+                        <div className="text-base font-extrabold text-slate-900 font-mono">{cert.certificate_id || cert.id}</div>
+                        <div className="text-xs text-slate-600 pt-1">
+                          Awarded to <strong className="text-slate-900">{cert.student_name || internName}</strong> for successfully completing the <strong>{cert.program || '3-Month Full Stack Development Internship'}</strong>.
+                        </div>
+                        <div className="text-xs text-slate-500 pt-1">
+                          Issue Date: <span className="font-semibold text-slate-700">{cert.issue_date || '26 Oct 2026'}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2.5 pt-2">
+                        <button
+                          onClick={() => onVerifyCert ? onVerifyCert(cert.certificate_id || cert.id) : window.open(`/verify/${cert.certificate_id || cert.id}`, '_blank')}
+                          className="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition"
+                        >
+                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <span>Verify Credential</span>
+                        </button>
+
+                        <a
+                          href={`/api/documents/certificate/${cert.id}/view`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3.5 py-2.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1.5 transition"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>View</span>
+                        </a>
+
+                        <a
+                          href={`/api/documents/certificate/${cert.id}/download`}
+                          className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* ========================================================
-              VIEW 7: OFFER LETTERS (SECTION 11)
+              VIEW 7: OFFER LETTERS (SECTION 10, 11, 33)
           ======================================================== */}
           {activeView === 'offer-letters' && (
             <div className="space-y-6">
@@ -2467,7 +2574,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
                     <div className="space-y-1">
                       <div className="text-xs text-slate-400 font-mono">VERIFICATION CODE:</div>
-                      <div className="text-base font-extrabold text-slate-900 font-mono">{ol.verification_code || 'SKX-OL-2026-9055'}</div>
+                      <div className="text-base font-extrabold text-slate-900 font-mono">{ol.verification_code || ol.offer_letter_id || 'SKX-OL-2026-9055'}</div>
                       <div className="text-xs text-slate-600 pt-1">
                         Domain: <strong className="text-slate-900">{ol.domain || domainName}</strong> • Duration: <strong>{ol.duration || durationStr}</strong>
                       </div>
@@ -2488,17 +2595,13 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                         <span>View Corporate Letter</span>
                       </button>
 
-                      <button
-                        onClick={() => {
-                          setSelectedOfferLetter(ol);
-                          setShowOfferLetterModal(true);
-                          setTimeout(() => window.print(), 300);
-                        }}
+                      <a
+                        href={`/api/documents/offer-letter/${ol.id}/download`}
                         className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>Print / Save</span>
-                      </button>
+                        <span>Download PDF</span>
+                      </a>
                     </div>
                   </div>
                 ))}
@@ -2848,22 +2951,45 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
       </div>
 
       {/* ========================================================
-          MODAL: OFFICIAL OFFER LETTER PREVIEW
+          MODAL: OFFICIAL OFFER LETTER PREVIEW (MATCHING IMAGE 1)
       ======================================================== */}
       {showOfferLetterModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-3xl bg-white rounded-3xl p-6 sm:p-10 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto space-y-6 text-slate-800">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <span className="text-xs font-extrabold uppercase tracking-wider text-sky-700 bg-sky-50 px-3 py-1 rounded-full border border-sky-200">
-                Official Skyrovix Letter of Offer
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in">
+          <div className="w-full max-w-4xl bg-white rounded-3xl p-4 sm:p-8 shadow-2xl border border-slate-200 max-h-[94vh] overflow-y-auto space-y-4 text-slate-800">
+            
+            {/* Top Toolbar */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <span className="text-xs font-black uppercase tracking-wider text-sky-800 bg-sky-50 px-3.5 py-1.5 rounded-full border border-sky-200 flex items-center gap-1.5">
+                <FileCheck2 className="w-4 h-4 text-sky-600" />
+                <span>Official Skyrovix Letter of Offer</span>
               </span>
               <div className="flex items-center gap-2">
+                {selectedOfferLetter && (
+                  <>
+                    <a
+                      href={`/api/documents/offer-letter/${selectedOfferLetter.id}/view`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Open Full Window</span>
+                    </a>
+                    <a
+                      href={`/api/documents/offer-letter/${selectedOfferLetter.id}/download`}
+                      className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1.5 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Download</span>
+                    </a>
+                  </>
+                )}
                 <button
                   onClick={() => window.print()}
-                  className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 transition"
+                  className="px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 transition"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Print / Save PDF</span>
+                  <span>Print</span>
                 </button>
                 <button
                   onClick={() => setShowOfferLetterModal(false)}
@@ -2874,76 +3000,184 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
               </div>
             </div>
 
-            {/* Official Letterhead */}
-            <div className="border border-slate-200 rounded-2xl p-6 sm:p-8 space-y-6 bg-white shadow-xs">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
-                <img src={navLogo} alt="Skyrovix" className="h-10 w-auto object-contain" />
-                <div className="text-right text-[11px] text-slate-500 space-y-0.5 font-medium">
-                  <div className="font-extrabold text-slate-900 text-xs">Skyrovix Technologies Pvt. Ltd.</div>
-                  <div>CIN: U72900TN2024PTC168921</div>
-                  <div>support@skyrovix.com • www.skyrovix.com</div>
+            {/* Pixel-Perfect A4 Offer Letter Canvas (Image 1 Style) */}
+            <div className="border border-slate-200 rounded-2xl p-6 sm:p-12 space-y-6 bg-white shadow-xs text-left text-xs leading-relaxed text-slate-800">
+              
+              {/* Header: Left Branding, Right Intern ID & Date */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <img src={navLogo} alt="Skyrovix Logo" className="h-12 w-auto object-contain" />
+                  <div className="space-y-0.5">
+                    <h2 className="text-xl font-black tracking-wider text-[#0f2b48]">SKYROVIX</h2>
+                    <p className="text-[11px] font-bold text-sky-600">Empowering Future Innovators</p>
+                    <p className="text-[10px] text-slate-500 font-medium">www.skyrovix.in | skyrovix@gmail.com</p>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right space-y-0.5">
+                  <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">INTERNSHIP ID</div>
+                  <div className="text-sm font-black text-slate-900 font-mono">
+                    {selectedOfferLetter?.internship_id || studentFormattedId || 'SKX-2026-9055'}
+                  </div>
+                  <div className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider pt-1">ISSUE DATE</div>
+                  <div className="text-xs font-bold text-slate-800">
+                    {selectedOfferLetter?.issue_date || enrollmentDate || '21 September 2026'}
+                  </div>
                 </div>
               </div>
 
-              <div className="flex justify-between text-xs font-semibold text-slate-600">
-                <div>Ref No: <span className="font-mono text-slate-900">SKX/INT/2026/B1-9055</span></div>
-                <div>Date: <span className="text-slate-900">{enrollmentDate}</span></div>
-              </div>
-
-              <div className="text-xs space-y-1 text-slate-700">
-                <div>To,</div>
-                <div className="font-extrabold text-base text-slate-900">{internName}</div>
-                <div>Student ID: <span className="font-mono font-bold text-sky-700">{studentFormattedId}</span></div>
-                <div>Department of {profile.department || 'Computer Science / IT'}</div>
-                <div>{profile.college || 'Engineering & Technology'}</div>
-              </div>
-
-              <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100 text-xs font-bold text-sky-950">
-                Subject: Letter of Offer – Virtual Internship in {domainName} (Batch 1)
-              </div>
-
-              <div className="text-xs text-slate-700 space-y-3 leading-relaxed">
-                <p>Dear <strong>{internName}</strong>,</p>
-                <p>
-                  We are delighted to extend to you an offer of internship with <strong>Skyrovix Technologies</strong> as a Virtual Technical Intern in the <strong>{domainName}</strong> track, Batch 1.
+              {/* Document Title */}
+              <div className="space-y-1">
+                <h1 className="text-xl sm:text-2xl font-black tracking-wide text-[#0f2b48] uppercase">
+                  INTERNSHIP OFFER LETTER
+                </h1>
+                <p className="text-xs font-semibold text-slate-600">
+                  Date: {selectedOfferLetter?.issue_date || enrollmentDate || '21 September 2026'}
                 </p>
-                
-                <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs font-medium">
-                  <div><strong>Designation:</strong> Technical Intern ({domainName})</div>
-                  <div><strong>Batch:</strong> Batch 1 (2026)</div>
-                  <div><strong>Mode:</strong> 100% Virtual / Remote</div>
-                  <div><strong>Duration:</strong> {durationStr}</div>
-                  <div><strong>Stipend:</strong> Performance / Capstone Based</div>
-                  <div><strong>Reporting:</strong> Technical Mentor Board</div>
+              </div>
+
+              {/* Salutation & Delighted Statement */}
+              <div className="space-y-3">
+                <p className="text-xs text-slate-800">
+                  Dear <strong className="font-extrabold text-slate-950">{selectedOfferLetter?.student_name || internName}</strong>,
+                </p>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  We are delighted to offer you the position of <strong className="font-bold text-slate-900">Virtual Intern – {selectedOfferLetter?.domain || 'Cloud Computing'}</strong> at <strong className="font-bold text-slate-900">Skyrovix</strong> (accessible at <strong className="text-sky-700">skyrovix.in</strong>). After reviewing your application, technical aptitude, and enthusiasm, we are confident that your skills make you a valuable addition to our engineering cohort.
+                </p>
+                <p className="text-xs text-slate-700 leading-relaxed">
+                  Your virtual internship details, work deliverables, and engagement particulars are finalized as follows:
+                </p>
+              </div>
+
+              {/* Particulars Table (Matching Image 1 Table Exactly) */}
+              <div className="rounded-xl overflow-hidden border border-slate-200">
+                <div className="bg-[#0f2b48] text-white py-2 px-4 font-black uppercase text-[11px] tracking-wider">
+                  INTERNSHIP PROGRAM PARTICULARS
                 </div>
+                <div className="divide-y divide-slate-100 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
+                    <span className="font-semibold text-slate-600">Internship Track</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.domain || 'Cloud Computing'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
+                    <span className="font-semibold text-slate-600">Intern ID</span>
+                    <span className="font-mono font-bold text-slate-900">{selectedOfferLetter?.internship_id || studentFormattedId || 'SKX-2026-9055'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
+                    <span className="font-semibold text-slate-600">Program Duration</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.duration || '1 Month'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
+                    <span className="font-semibold text-slate-600">Commencement Date</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.start_date || selectedOfferLetter?.issue_date || '21 September 2026'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
+                    <span className="font-semibold text-slate-600">Estimated Completion</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.end_date || '21 October 2026'}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
+                    <span className="font-semibold text-slate-600">Stipend Specification</span>
+                    <span className="font-bold text-slate-900">Unpaid (Performance-Based Internship)</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
+                    <span className="font-semibold text-slate-600">Location &amp; Model</span>
+                    <span className="font-bold text-slate-900">Remote / Virtual (Task-Based, Flexible Hours)</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
+                    <span className="font-semibold text-slate-600">Official Domain Portal</span>
+                    <span className="font-bold text-sky-700">https://skyrovix.in</span>
+                  </div>
+                </div>
+              </div>
 
-                <p>
-                  Upon satisfactory completion of assigned sprint tasks and code reviews, you will be awarded an official, verifiable Certificate of Internship Completion along with a Letter of Recommendation.
+              {/* Callout Box 1: General Terms & Conditions */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-2 text-[11px] leading-relaxed">
+                <div className="font-black text-[#0f2b48] uppercase tracking-wider text-xs">
+                  GENERAL TERMS &amp; CONDITIONS OF INTERNSHIP:
+                </div>
+                <div className="space-y-1.5 text-slate-700">
+                  <p><strong>1. Task Execution &amp; Milestones:</strong> You will work on production-grade tasks and project modules aligned with {selectedOfferLetter?.domain || 'Cloud Computing'}. Timely submission of weekly progress updates and milestone deliverables via skyrovix.in is mandatory.</p>
+                  <p><strong>2. Code of Conduct &amp; Integrity:</strong> Plagiarism, unauthorized code dissemination, or any form of professional misconduct will lead to immediate cancellation of your internship program.</p>
+                  <p><strong>3. Confidentiality &amp; Non-Disclosure:</strong> Any documentation, source code, architecture designs, or mock datasets shared during this program are strictly confidential and the intellectual property of Skyrovix.</p>
+                  <p><strong>4. Mentorship &amp; Continuous Evaluation:</strong> You will receive structured technical guidance and feedback throughout your tenure to foster industry-standard development capabilities.</p>
+                  <p><strong>5. Certification:</strong> An official Certificate of Internship Completion will be issued only upon successful submission and mentor approval of all milestone tasks.</p>
+                </div>
+              </div>
+
+              {/* Callout Box 2: Certificate of Completion */}
+              <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-1 text-[11px]">
+                <div className="font-black text-[#0f2b48] uppercase tracking-wider text-xs">
+                  CERTIFICATE OF COMPLETION
+                </div>
+                <p className="text-slate-700 leading-relaxed">
+                  Upon successful completion of the internship tenure and fulfillment of all assigned tasks, you will receive an official Certificate of Internship from Skyrovix, verifiable on our official domain at skyrovix.in/verify-certificate.
                 </p>
               </div>
 
-              {/* Signatures & Seal */}
-              <div className="pt-6 border-t border-slate-200 flex items-end justify-between">
-                <div>
-                  <img src={signatureImg} alt="Authorized Signature" className="h-10 w-auto object-contain mb-1" />
+              {/* Acceptance Notice */}
+              <p className="text-[11px] text-slate-600 italic">
+                Please return the signed copy of this letter as a token of your formal acceptance of this offer. We look forward to a mutually rewarding learning experience.
+              </p>
+
+              {/* Dual Signatures & Center Company Seal */}
+              <div className="pt-6 border-t border-slate-200 grid grid-cols-3 items-end text-center">
+                {/* Founder & CEO */}
+                <div className="space-y-1">
+                  <div className="h-12 flex items-end justify-center">
+                    <img src={signatureImg} alt="Hariharan S Signature" className="h-10 w-auto object-contain" />
+                  </div>
+                  <div className="w-36 mx-auto border-t border-slate-400" />
                   <div className="font-extrabold text-xs text-slate-900">Hariharan S</div>
-                  <div className="text-[10px] text-slate-500 font-semibold">Director of Engineering &amp; Talent</div>
-                  <div className="text-[10px] text-sky-700 font-bold">Skyrovix Technologies</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">FOUNDER &amp; CEO</div>
+                  <div className="text-[10px] text-sky-700 font-semibold">Skyrovix</div>
                 </div>
-                <div className="w-20 h-20 opacity-80">
-                  <img src={sealImg} alt="Official Seal" className="w-full h-full object-contain" />
+
+                {/* Center Company Seal */}
+                <div className="space-y-1">
+                  <div className="w-20 h-20 mx-auto">
+                    <img src={sealImg} alt="Company Seal" className="w-full h-full object-contain" />
+                  </div>
+                  <div className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                    COMPANY SEAL
+                  </div>
+                </div>
+
+                {/* Co-Founder */}
+                <div className="space-y-1">
+                  <div className="h-12 flex items-end justify-center">
+                    <img src={maheshSig} alt="Maheshwaran S Signature" className="h-10 w-auto object-contain" />
+                  </div>
+                  <div className="w-36 mx-auto border-t border-slate-400" />
+                  <div className="font-extrabold text-xs text-slate-900">Maheshwaran S</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">CO-FOUNDER</div>
+                  <div className="text-[10px] text-sky-700 font-semibold">Skyrovix</div>
                 </div>
               </div>
+
+              {/* Partner & Registry Footer (Image 1 Style) */}
+              <div className="pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                {/* Left: MSME & Vinix */}
+                <div className="flex items-center gap-3">
+                  <img src={msmeLogo} alt="MSME Logo" className="h-8 w-auto object-contain" />
+                  <img src={vinixLogo} alt="Vinix Partner" className="h-7 w-auto object-contain" />
+                </div>
+
+                {/* Center: UDYAM Registry */}
+                <div className="text-center space-y-0.5 text-[10px] text-slate-500 font-medium">
+                  <div className="font-extrabold text-slate-800 text-xs">SKYROVIX</div>
+                  <div>UDYAM Registry: UDYAM-TN-17-0076606</div>
+                  <div>skyrovix@gmail.com | www.skyrovix.in</div>
+                </div>
+
+                {/* Right: YR Tech Logo */}
+                <div>
+                  <img src={yrLogo} alt="YR Tech Partner" className="h-8 w-auto object-contain" />
+                </div>
+              </div>
+
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => window.print()}
-                className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-2 shadow-sm"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Offer Letter</span>
-              </button>
               <button
                 onClick={() => setShowOfferLetterModal(false)}
                 className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs"

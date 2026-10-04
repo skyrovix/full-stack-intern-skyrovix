@@ -26,8 +26,10 @@ import {
   getCashfreeEnvironment
 } from './cashfree.js';
 
-import { isSupabaseConfigured } from './supabase.js';
+import { isSupabaseConfigured, supabase } from './supabase.js';
 import { pullFromSupabase, pushToSupabase } from './supabaseSync.js';
+import { renderOfferLetterHtml, renderCertificateHtml, generateVerificationQr } from './documentTemplates.js';
+import { sendOfferLetterEmail, sendCertificateEmail, logEmailEvent, getEmailLogsForReference } from './emailService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -38,6 +40,10 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'skyrovix_super_secret_jwt_2026';
+
+// Serve client assets for document branding, seals, and signatures
+app.use('/assets', express.static(path.join(__dirname, '../client/src/assets')));
+app.use('/assets', express.static(path.join(__dirname, '../client/dist/assets')));
 
 // Middleware for CORS
 app.use(cors({
@@ -54,16 +60,34 @@ app.use(express.json({
 
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting for public registration / payment APIs
-const apiLimiter = rateLimit({
+// Rate limiting: Protect public endpoints without blocking local development or administrative traffic
+const isLocalRequest = (req) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  return ip === '127.0.0.1' || ip === '::1' || ip.includes('127.0.0.1') || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+};
+
+// General API limiter with high tolerance and localhost bypass
+const generalApiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: 10000, // Generous capacity
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' }
+  skip: (req) => isLocalRequest(req) || req.path.startsWith('/admin') || req.path.startsWith('/health') || req.path.startsWith('/public'),
+  message: { error: 'Too many requests from this IP, please try again in a few minutes.' }
 });
 
-app.use('/api/', apiLimiter);
+// Dedicated login rate limiter (protects against brute force while skipping successful logins & localhost)
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  skipSuccessfulRequests: true,
+  skip: (req) => isLocalRequest(req),
+  message: { error: 'Too many failed login attempts, please try again in a few minutes.' }
+});
+
+app.use('/api/', generalApiLimiter);
+app.use('/api/student/login', authLimiter);
+app.use('/api/admin/login', authLimiter);
 
 // JWT Auth Middleware for Admin
 const authenticateAdmin = (req, res, next) => {
@@ -735,36 +759,128 @@ app.post('/api/submissions', async (req, res) => {
 });
 
 // ==========================================
-// 6. CERTIFICATE VERIFICATION
+// 6. CERTIFICATE VERIFICATION, ELIGIBILITY & DOCUMENTS
 // ==========================================
 
-app.get('/api/certificates/:id', async (req, res) => {
+// Reusable Certificate Eligibility Checker (Section 12)
+export async function checkCertificateEligibility(studentId) {
+  const reasons = [];
+
+  const student = await dbGet('SELECT * FROM students WHERE id = ?', [studentId]);
+  if (!student) {
+    return { eligible: false, reasons: ['Student account not found'] };
+  }
+
+  const registration = await dbGet('SELECT * FROM registrations WHERE student_id = ?', [studentId]);
+  if (!registration) {
+    return { eligible: false, reasons: ['No internship registration record found'] };
+  }
+
+  // 1. Payment confirmation
+  if (registration.payment_status !== 'PAID') {
+    reasons.push('Internship registration fee payment pending (Requires PAID & CONFIRMED status)');
+  }
+
+  // 2. Administrative hold check
+  const workflow = await getOrCreateInternWorkflow(studentId);
+  if (workflow.is_manually_locked === 1) {
+    reasons.push(`Internship workflow locked: ${workflow.manual_lock_reason || 'Administrative Hold'}`);
+  }
+
+  // 3. Stage 1 check (LinkedIn offer letter announcement)
+  if (workflow.stage1_status !== 'APPROVED') {
+    reasons.push('Stage 1 Offer Letter announcement pending mentor board approval');
+  }
+
+  // 4. Stage 2 Training Modules check (all 5 modules must be APPROVED)
+  const approvedTraining = await dbAll(
+    'SELECT module_id FROM training_submissions WHERE student_id = ? AND status = "APPROVED"',
+    [studentId]
+  );
+  const approvedModuleCount = approvedTraining?.length || 0;
+  if (approvedModuleCount < 5) {
+    reasons.push(`Training & Learning modules incomplete (${approvedModuleCount}/5 approved)`);
+  }
+
+  // 5. Stage 3 Project / Capstone check (at least 1 capstone project must be APPROVED)
+  const approvedProjects = await dbAll(
+    'SELECT id FROM submissions WHERE student_id = ? AND status = "APPROVED"',
+    [studentId]
+  );
+  if (!approvedProjects || approvedProjects.length === 0) {
+    reasons.push('Capstone internship project deliverable has not been approved by mentor board');
+  }
+
+  const existingCert = await dbGet('SELECT * FROM certificates WHERE student_id = ?', [studentId]);
+
+  return {
+    eligible: reasons.length === 0,
+    reasons,
+    student,
+    registration,
+    workflow,
+    already_certified: Boolean(existingCert),
+    existing_certificate: existingCert || null
+  };
+}
+
+// Public Certificate Verification (Section 16, 17, 18)
+app.get(['/api/certificates/:id', '/api/certificates/:id/verify'], async (req, res) => {
   try {
     const certId = req.params.id;
-    const cert = await dbGet(`SELECT * FROM certificates WHERE id = ?`, [certId]);
+    const cert = await dbGet(
+      `SELECT * FROM certificates WHERE id = ? OR certificate_id = ?`,
+      [certId, certId]
+    );
 
+    // Section 17: Invalid / Not Found Certificate
     if (!cert) {
       return res.status(404).json({
         verified: false,
-        message: 'Certificate ID not found or invalid.'
+        status: 'NOT_FOUND',
+        message: 'The certificate ID entered is invalid or does not exist.'
       });
     }
 
-    const student = await dbGet(`SELECT full_name, college FROM students WHERE id = ?`, [cert.student_id]);
+    // Section 18: Revoked Certificate
+    if (cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' || cert.revoked === 1) {
+      return res.status(200).json({
+        verified: false,
+        status: 'REVOKED',
+        message: 'This certificate is no longer valid.',
+        certificate: {
+          id: cert.id,
+          certificate_id: cert.certificate_id || cert.id,
+          student_name: cert.student_name,
+          domain: cert.domain || 'Full Stack Development',
+          status: 'REVOKED'
+        }
+      });
+    }
+
+    // Section 16: Valid Certificate
+    const student = await dbGet(`SELECT full_name, college, student_id_formatted FROM students WHERE id = ?`, [cert.student_id]);
+    const internId = student?.student_id_formatted || cert.internship_id || `SKX-2026-${String(cert.student_id).slice(-4)}`;
 
     res.json({
       verified: true,
+      status: 'VALID',
       certificate: {
         id: cert.id,
+        certificate_id: cert.certificate_id || cert.id,
+        intern_id: cert.internship_id || internId,
         student_name: cert.student_name,
-        college: student?.college || 'Engineering & Technology',
-        program: cert.program,
-        batch: cert.batch,
-        duration: cert.duration,
+        domain: cert.domain || 'Full Stack Development',
+        program: cert.program || '3-Month Full Stack Development Internship',
+        duration: cert.duration || '3 Months',
+        start_date: cert.start_date || '01 August 2026',
+        end_date: cert.end_date || '31 October 2026',
         issue_date: cert.issue_date,
-        status: cert.status,
-        issuer: 'Skyrovix Technologies',
-        credential_url: `${process.env.APP_URL || 'http://localhost:5173'}/verify/${cert.id}`
+        status: 'VALID',
+        status_display: 'Successfully Completed',
+        download_url: `/api/documents/certificate/${cert.id}/download`,
+        view_url: `/api/documents/certificate/${cert.id}/view`,
+        verify_url: `https://www.skyrovix.in/verify/${cert.id}`
       }
     });
   } catch (err) {
@@ -772,6 +888,128 @@ app.get('/api/certificates/:id', async (req, res) => {
     res.status(500).json({ error: 'Internal server error during verification' });
   }
 });
+
+// View Offer Letter in full printable A4 HTML
+app.get('/api/documents/offer-letter/:id/view', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const ol = await dbGet('SELECT * FROM offer_letters WHERE id = ? OR verification_code = ?', [id, id]);
+    if (!ol) return res.status(404).send('Offer Letter not found');
+
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [ol.student_id]);
+    const html = renderOfferLetterHtml({
+      student_name: ol.student_name || student?.full_name,
+      student_id: ol.student_id,
+      student_id_formatted: student?.student_id_formatted,
+      intern_id: ol.internship_id || student?.student_id_formatted,
+      offer_letter_id: ol.verification_code || ol.id,
+      verification_code: ol.verification_code,
+      domain: ol.domain || 'Cloud Computing',
+      duration: ol.duration || '1 Month',
+      issue_date: ol.issue_date,
+      start_date: ol.start_date || ol.issue_date,
+      end_date: ol.end_date
+    });
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error rendering offer letter: ' + err.message);
+  }
+});
+
+// Download Offer Letter file
+app.get('/api/documents/offer-letter/:id/download', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const ol = await dbGet('SELECT * FROM offer_letters WHERE id = ? OR verification_code = ?', [id, id]);
+    if (!ol) return res.status(404).send('Offer Letter not found');
+
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [ol.student_id]);
+    const html = renderOfferLetterHtml({
+      student_name: ol.student_name || student?.full_name,
+      student_id: ol.student_id,
+      student_id_formatted: student?.student_id_formatted,
+      intern_id: ol.internship_id || student?.student_id_formatted,
+      offer_letter_id: ol.verification_code || ol.id,
+      verification_code: ol.verification_code,
+      domain: ol.domain || 'Cloud Computing',
+      duration: ol.duration || '1 Month',
+      issue_date: ol.issue_date,
+      start_date: ol.start_date || ol.issue_date,
+      end_date: ol.end_date
+    });
+
+    await dbRun('UPDATE offer_letters SET downloaded_at = CURRENT_TIMESTAMP WHERE id = ?', [ol.id]);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Skyrovix_Offer_Letter_${ol.verification_code || ol.id}.html"`);
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error downloading offer letter: ' + err.message);
+  }
+});
+
+// View Certificate in printable landscape HTML with scannable QR code
+app.get('/api/documents/certificate/:id/view', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cert = await dbGet('SELECT * FROM certificates WHERE id = ?', [id]);
+    if (!cert) return res.status(404).send('Certificate not found');
+
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [cert.student_id]);
+    const html = await renderCertificateHtml({
+      student_name: cert.student_name || student?.full_name,
+      student_id: cert.student_id,
+      student_id_formatted: student?.student_id_formatted,
+      intern_id: cert.internship_id || student?.student_id_formatted,
+      certificate_id: cert.id,
+      domain: cert.domain || 'Full Stack Development',
+      duration: cert.duration || '3 Months',
+      issue_date: cert.issue_date,
+      start_date: cert.start_date,
+      end_date: cert.end_date
+    });
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error rendering certificate: ' + err.message);
+  }
+});
+
+// Download Certificate file
+app.get('/api/documents/certificate/:id/download', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cert = await dbGet('SELECT * FROM certificates WHERE id = ?', [id]);
+    if (!cert) return res.status(404).send('Certificate not found');
+
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [cert.student_id]);
+    const html = await renderCertificateHtml({
+      student_name: cert.student_name || student?.full_name,
+      student_id: cert.student_id,
+      student_id_formatted: student?.student_id_formatted,
+      intern_id: cert.internship_id || student?.student_id_formatted,
+      certificate_id: cert.id,
+      domain: cert.domain || 'Full Stack Development',
+      duration: cert.duration || '3 Months',
+      issue_date: cert.issue_date,
+      start_date: cert.start_date,
+      end_date: cert.end_date
+    });
+
+    await dbRun('UPDATE certificates SET downloaded_at = CURRENT_TIMESTAMP WHERE id = ?', [cert.id]);
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="Skyrovix_Certificate_${cert.id}.html"`);
+    res.send(html);
+  } catch (err) {
+    res.status(500).send('Error downloading certificate: ' + err.message);
+  }
+});
+
+
 
 // ==========================================
 // 6b. USER DASHBOARD LOGIN (STUDENT AUTH)
@@ -2026,27 +2264,34 @@ app.post('/api/user/tasks/submit', requirePaidStudent, async (req, res) => {
   }
 });
 
-// Get user certificates
+// Get user certificates (Section 10, 21)
 app.get('/api/user/certificates', requirePaidStudent, async (req, res) => {
   try {
     const student = req.student;
-
-    let certs = await dbAll(`SELECT * FROM certificates WHERE student_id = ?`, [student.id]);
-    
-    // If none yet, provide sample verified certificate for student
-    if (certs.length === 0) {
-      const certId = `SKY-B1-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}-CERT`;
-      const today = '26 Oct 2026';
-      await dbRun(`
-        INSERT INTO certificates (id, student_id, student_name, program, batch, duration, issue_date, status, verification_url)
-        VALUES (?, ?, ?, '3-Month Full Stack Development Internship', 'Batch 1', '1 Month', ?, 'ISSUED', ?)
-      `, [certId, student.id, student.full_name, today, `/verify/${certId}`]);
-      certs = await dbAll(`SELECT * FROM certificates WHERE student_id = ?`, [student.id]);
-    }
-
+    const certs = await dbAll(`SELECT * FROM certificates WHERE student_id = ?`, [student.id]);
     res.json({ success: true, certificates: certs });
   } catch (e) {
     res.status(500).json({ error: 'Failed to retrieve certificates' });
+  }
+});
+
+// Student Certificate Eligibility (Section 12)
+app.get('/api/user/certificate-eligibility', requirePaidStudent, async (req, res) => {
+  try {
+    const eligibility = await checkCertificateEligibility(req.student.id);
+    res.json({ success: true, ...eligibility });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to evaluate eligibility: ' + err.message });
+  }
+});
+
+// Admin Check Student Certificate Eligibility (Section 12, 22)
+app.get('/api/admin/students/:id/certificate-eligibility', authenticateAdmin, async (req, res) => {
+  try {
+    const eligibility = await checkCertificateEligibility(req.params.id);
+    res.json({ success: true, ...eligibility });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to evaluate eligibility: ' + err.message });
   }
 });
 
@@ -2384,6 +2629,148 @@ app.put('/api/admin/users/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
+// Delete student/user account permanently (Admin)
+const deleteUserHandler = async (req, res) => {
+  try {
+    const targetIdentifier = req.params.id;
+
+    // 1. Look up student by primary id or email
+    let student = await dbGet('SELECT * FROM students WHERE id = ? OR email = ?', [targetIdentifier, targetIdentifier]);
+    
+    if (!student) {
+      // Check if targetIdentifier is a registration ID
+      const reg = await dbGet('SELECT * FROM registrations WHERE id = ? OR student_id = ?', [targetIdentifier, targetIdentifier]);
+      if (reg) {
+        student = await dbGet('SELECT * FROM students WHERE id = ?', [reg.student_id]);
+        if (!student) {
+          // Orphan registration record: clean up payments and registration
+          try {
+            await dbRun('DELETE FROM payments WHERE registration_id = ?', [reg.id]);
+            await dbRun('DELETE FROM registrations WHERE id = ?', [reg.id]);
+          } catch (e) {}
+
+          if (supabase) {
+            try {
+              await supabase.from('registrations').delete().eq('id', reg.id);
+            } catch (err) {}
+          }
+
+          await recordAuditLog(
+            req.admin.id,
+            req.admin.username,
+            'DELETE_APPLICATION_RECORD',
+            'APPLICATION',
+            reg.id,
+            { deleted_registration_id: reg.id }
+          );
+          return res.json({ success: true, message: `Application record ${reg.id} removed.` });
+        }
+      }
+    }
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student account not found' });
+    }
+
+    const sId = student.id;
+
+    // 2. Cascade delete student assets safely across all SQLite tables
+    try {
+      // Support replies (support_tickets has user_id)
+      await dbRun('DELETE FROM support_replies WHERE ticket_id IN (SELECT id FROM support_tickets WHERE user_id = ?)', [sId]);
+      await dbRun('DELETE FROM support_tickets WHERE user_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete support_tickets notice:', e.message);
+    }
+
+    try {
+      // User in-app notifications
+      await dbRun('DELETE FROM user_notifications WHERE user_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete user_notifications notice:', e.message);
+    }
+
+    try {
+      // 3-Stage workflow submissions
+      await dbRun('DELETE FROM training_submissions WHERE student_id = ?', [sId]);
+      await dbRun('DELETE FROM linkedin_submissions WHERE student_id = ?', [sId]);
+      await dbRun('DELETE FROM intern_workflows WHERE student_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete workflows notice:', e.message);
+    }
+
+    try {
+      // Project submissions
+      await dbRun('DELETE FROM submissions WHERE student_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete submissions notice:', e.message);
+    }
+
+    try {
+      // Certificates & offer letters
+      await dbRun('DELETE FROM certificates WHERE student_id = ?', [sId]);
+      await dbRun('DELETE FROM offer_letters WHERE student_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete credentials notice:', e.message);
+    }
+
+    try {
+      // Payments linked to student registrations
+      await dbRun('DELETE FROM payments WHERE registration_id IN (SELECT id FROM registrations WHERE student_id = ?)', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete payments notice:', e.message);
+    }
+
+    try {
+      // Student registrations
+      await dbRun('DELETE FROM registrations WHERE student_id = ?', [sId]);
+    } catch (e) {
+      console.warn('Cascade delete registrations notice:', e.message);
+    }
+
+    // Finally delete student record
+    await dbRun('DELETE FROM students WHERE id = ?', [sId]);
+
+    // 3. Mirror delete to Supabase if connected
+    if (supabase) {
+      try {
+        await supabase.from('registrations').delete().eq('student_id', sId);
+        await supabase.from('offer_letters').delete().eq('student_id', sId);
+        await supabase.from('certificates').delete().eq('student_id', sId);
+        await supabase.from('students').delete().eq('id', sId);
+      } catch (err) {
+        console.warn('Supabase cascade delete notice:', err.message);
+      }
+    }
+
+    await recordAuditLog(
+      req.admin.id,
+      req.admin.username,
+      'DELETE_USER_ACCOUNT',
+      'USER',
+      sId,
+      {
+        deleted_student_name: student.full_name,
+        deleted_student_email: student.email,
+        deleted_student_mobile: student.mobile,
+        deleted_at: new Date().toISOString()
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      message: `Account for ${student.full_name} (${student.email}) has been permanently deleted.` 
+    });
+  } catch (e) {
+    console.error('Error deleting user account:', e);
+    res.status(500).json({ error: 'Failed to delete user account: ' + e.message });
+  }
+};
+
+app.delete('/api/admin/users/:id', authenticateAdmin, deleteUserHandler);
+app.delete('/api/admin/students/:id', authenticateAdmin, deleteUserHandler);
+app.delete('/api/admin/applications/:id', authenticateAdmin, deleteUserHandler);
+
 // Get all applications (Admin)
 app.get('/api/admin/applications', authenticateAdmin, async (req, res) => {
   try {
@@ -2434,7 +2821,7 @@ app.get('/api/admin/applications', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Update application status (Approve, Reject, Stage change)
+// Update application status (Approve, Reject, Stage change) - Section 1, 3, 4, 5, 6, 7, 8, 9
 app.put('/api/admin/applications/:id/status', authenticateAdmin, async (req, res) => {
   try {
     const applicationId = req.params.id;
@@ -2451,6 +2838,90 @@ app.put('/api/admin/applications/:id/status', authenticateAdmin, async (req, res
       WHERE id = ?
     `, [registration_status, payment_status, applicationId]);
 
+    const newStatus = registration_status || existing.registration_status;
+
+    // When application is approved or confirmed, execute auto-provisioning
+    if (newStatus === 'APPROVED' || newStatus === 'CONFIRMED') {
+      const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [existing.student_id]);
+      if (student) {
+        // Section 4: Auto-generate unique Student ID (e.g. SKX-2026-9055)
+        const studentIdFormatted = student.student_id_formatted || `SKX-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        await dbRun(`UPDATE students SET student_id_formatted = ?, application_status = 'APPROVED' WHERE id = ?`, [studentIdFormatted, student.id]);
+
+        // Section 5: Auto-generate unique Internship ID (e.g. SKX-INT-2026-4582)
+        const internshipId = existing.internship_id || `SKX-INT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        await dbRun(`UPDATE registrations SET internship_id = ?, internship_status = 'ACTIVE' WHERE id = ?`, [internshipId, applicationId]);
+
+        // Section 6, 7, 8, 9: Offer Letter Auto-Generation and Email Dispatch
+        const existingOL = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
+        if (!existingOL) {
+          const olId = `OL-SKX-${Date.now().toString().slice(-4)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+          const olCode = `SKX-OL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+          const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+          const domain = existing.domain || 'Cloud Computing';
+          const duration = existing.duration || '1 Month';
+          const endDate = existing.end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+          const pdfUrl = `/api/documents/offer-letter/${olId}/view`;
+
+          await dbRun(`
+            INSERT INTO offer_letters (
+              id, offer_letter_id, student_id, internship_id, student_name,
+              program, domain, role, duration, start_date, end_date, mode,
+              issue_date, status, verification_code, terms, pdf_url, email_status
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
+          `, [
+            olId, olCode, student.id, internshipId, student.full_name,
+            '3-Month Full Stack Development Internship', domain, duration, todayDate, endDate,
+            todayDate, olCode, pdfUrl
+          ]);
+
+          // Send email automatically
+          try {
+            const host = req.get('host');
+            const docUrl = `${req.protocol}://${host}${pdfUrl}`;
+            const emailRes = await sendOfferLetterEmail({
+              to: student.email,
+              student_name: student.full_name,
+              offer_letter_id: olCode,
+              intern_id: studentIdFormatted,
+              domain,
+              duration,
+              start_date: todayDate,
+              end_date: endDate,
+              document_url: docUrl
+            });
+
+            if (emailRes.success) {
+              await dbRun(`UPDATE offer_letters SET email_status = 'SENT', email_sent_at = CURRENT_TIMESTAMP WHERE id = ?`, [olId]);
+              await logEmailEvent(student.id, 'OFFER_LETTER', student.email, olCode, 'SENT', emailRes.messageId || null);
+            } else {
+              await dbRun(`UPDATE offer_letters SET email_status = 'FAILED' WHERE id = ?`, [olId]);
+              await logEmailEvent(student.id, 'OFFER_LETTER', student.email, olCode, 'FAILED', null, emailRes.error);
+            }
+          } catch (emErr) {
+            console.warn('Failed to send offer letter email on approval:', emErr.message);
+          }
+
+          // Student In-App Notification
+          const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+          await dbRun(`
+            INSERT INTO user_notifications (id, user_id, title, message, type)
+            VALUES (?, ?, ?, ?, ?)
+          `, [notifId, student.id, 'Official Offer Letter Issued!', `Your official Offer Letter (${olCode}) is now available in your dashboard.`, 'offer_letter']);
+
+          await recordAuditLog(
+            req.admin.id,
+            req.admin.username,
+            'GENERATE_OFFER_LETTER',
+            'OFFER_LETTER',
+            olId,
+            { student_name: student.full_name, offer_letter_id: olCode, auto_generated_on_approval: true }
+          );
+        }
+      }
+    }
+
     await recordAuditLog(
       req.admin.id,
       req.admin.username,
@@ -2462,6 +2933,7 @@ app.put('/api/admin/applications/:id/status', authenticateAdmin, async (req, res
 
     res.json({ success: true, message: `Application updated to ${registration_status || existing.registration_status}` });
   } catch (e) {
+    console.error('Error updating application status:', e);
     res.status(500).json({ error: 'Failed to update application' });
   }
 });
@@ -2608,43 +3080,121 @@ app.get('/api/admin/certificates', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Generate new certificate (Admin)
+// Generate new certificate (Admin) - Section 12, 13, 14, 15, 19, 25, 26, 28
 app.post('/api/admin/certificates/generate', authenticateAdmin, async (req, res) => {
   try {
-    const { student_id, program, duration, batch } = req.body;
+    const { student_id, program, duration, batch, override_eligibility, regenerate } = req.body;
     const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [student_id]);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
-    const certId = `SKY-B1-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const verifyUrl = `/verify/${certId}`;
+    // Section 12: Reusable completion eligibility check
+    const eligibility = await checkCertificateEligibility(student_id);
+    if (!eligibility.eligible && !override_eligibility) {
+      return res.status(400).json({
+        error: 'Student is not yet eligible for certificate completion',
+        eligible: false,
+        reasons: eligibility.reasons
+      });
+    }
 
-    await dbRun(`
-      INSERT INTO certificates (id, student_id, student_name, program, batch, duration, issue_date, status, verification_url)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'ISSUED', ?)
-    `, [
-      certId,
-      student.id,
-      student.full_name,
-      program || '3-Month Full Stack Development Internship',
-      batch || 'Batch 1',
-      duration || '3 Months',
-      today,
-      verifyUrl
-    ]);
+    // Section 26: Duplicate Protection - If certificate already exists, return it unless explicit regenerate
+    const existingCert = await dbGet(`SELECT * FROM certificates WHERE student_id = ?`, [student_id]);
+    if (existingCert && !regenerate) {
+      return res.status(200).json({
+        success: true,
+        message: 'Certificate already exists for this student',
+        certificate_id: existingCert.id,
+        certificate: existingCert
+      });
+    }
+
+    // Section 13: Unique Certificate ID format (e.g. SKX-CERT-2026-91990)
+    const certId = existingCert ? existingCert.id : `SKX-CERT-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+    const internId = student.student_id_formatted || eligibility.registration?.internship_id || `SKX-2026-${String(student.id).slice(-4)}`;
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const domain = req.body.domain || eligibility.registration?.domain || 'Full Stack Development';
+    const finalProgram = program || '3-Month Full Stack Development Internship';
+    const finalBatch = batch || 'Batch 1';
+    const finalDuration = duration || eligibility.registration?.duration || '3 Months';
+    const startDate = req.body.start_date || eligibility.registration?.start_date || '01 August 2026';
+    const endDate = req.body.end_date || eligibility.registration?.end_date || '31 October 2026';
+    const verifyUrl = `https://www.skyrovix.in/verify/${certId}`;
+    const pdfUrl = `/api/documents/certificate/${certId}/view`;
+
+    // Section 15: Scannable QR code generation pointing to verification URL
+    let qrCodeData = '';
+    try {
+      qrCodeData = await generateVerificationQr(certId);
+    } catch (qrErr) {
+      console.warn('QR code generation warning:', qrErr.message);
+    }
+
+    if (existingCert) {
+      await dbRun(`
+        UPDATE certificates SET
+          student_name = ?, program = ?, domain = ?, batch = ?, duration = ?, issue_date = ?,
+          start_date = ?, end_date = ?, status = 'ISSUED', certificate_status = 'VALID',
+          qr_code_data = ?, pdf_url = ?, verification_url = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [student.full_name, finalProgram, domain, finalBatch, finalDuration, today, startDate, endDate, qrCodeData, pdfUrl, verifyUrl, certId]);
+    } else {
+      await dbRun(`
+        INSERT INTO certificates (
+          id, certificate_id, student_id, internship_id, student_name, program, domain,
+          batch, duration, issue_date, start_date, end_date, status, certificate_status,
+          verification_url, pdf_url, qr_code_data, grade
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', 'VALID', ?, ?, ?, 'A+')
+      `, [
+        certId, certId, student.id, internId, student.full_name, finalProgram, domain,
+        finalBatch, finalDuration, today, startDate, endDate, verifyUrl, pdfUrl, qrCodeData
+      ]);
+    }
+
+    // Mark registration internship status as completed
+    await dbRun(`UPDATE registrations SET internship_status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE student_id = ?`, [student.id]);
 
     await pushToSupabase('certificates', {
       id: certId,
       student_id: student.id,
-      program: program || '3-Month Full Stack Development Internship',
-      duration: duration || '3 Months',
-      batch: batch || 'Batch 1',
+      program: finalProgram,
+      duration: finalDuration,
+      batch: finalBatch,
       issue_date: today,
       grade: 'A+',
       status: 'ISSUED',
       verification_hash: `hash_${certId}`,
       revoked: 0
     });
+
+    // Section 14, 28: Send certificate email automatically
+    let emailSent = false;
+    try {
+      const host = req.get('host');
+      const docUrl = `${req.protocol}://${host}${pdfUrl}`;
+      const emailResult = await sendCertificateEmail({
+        to: student.email,
+        student_name: student.full_name,
+        certificate_id: certId,
+        intern_id: internId,
+        domain,
+        duration: finalDuration,
+        issue_date: today,
+        verify_url: verifyUrl,
+        document_url: docUrl
+      });
+
+      if (emailResult.success) {
+        emailSent = true;
+        await dbRun(`UPDATE certificates SET email_status = 'SENT', email_sent_at = CURRENT_TIMESTAMP WHERE id = ?`, [certId]);
+        await logEmailEvent(student.id, 'CERTIFICATE', student.email, certId, 'SENT', emailResult.messageId || null);
+      } else {
+        await dbRun(`UPDATE certificates SET email_status = 'FAILED' WHERE id = ?`, [certId]);
+        await logEmailEvent(student.id, 'CERTIFICATE', student.email, certId, 'FAILED', null, emailResult.error);
+      }
+    } catch (emErr) {
+      console.warn('Failed to send certificate email:', emErr.message);
+    }
 
     // Send in-app notification to student
     const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
@@ -2659,21 +3209,26 @@ app.post('/api/admin/certificates/generate', authenticateAdmin, async (req, res)
       'GENERATE_CERTIFICATE',
       'CERTIFICATE',
       certId,
-      { student_name: student.full_name, student_id: student.id }
+      { student_name: student.full_name, student_id: student.id, email_sent: emailSent }
     );
 
-    res.status(201).json({ success: true, message: 'Certificate issued successfully!', certificate_id: certId });
+    res.status(201).json({
+      success: true,
+      message: 'Certificate issued successfully!',
+      certificate_id: certId,
+      email_sent: emailSent
+    });
   } catch (e) {
     console.error('Error generating certificate:', e);
     res.status(500).json({ error: e.message || 'Failed to generate certificate' });
   }
 });
 
-// Revoke certificate (Admin)
+// Revoke certificate (Admin) - Section 18
 app.put('/api/admin/certificates/:id/revoke', authenticateAdmin, async (req, res) => {
   try {
     const certId = req.params.id;
-    await dbRun(`UPDATE certificates SET status = 'REVOKED' WHERE id = ?`, [certId]);
+    await dbRun(`UPDATE certificates SET status = 'REVOKED', certificate_status = 'REVOKED', revoked = 1 WHERE id = ? OR certificate_id = ?`, [certId, certId]);
 
     await pushToSupabase('certificates', {
       id: certId,
@@ -2696,6 +3251,74 @@ app.put('/api/admin/certificates/:id/revoke', authenticateAdmin, async (req, res
   }
 });
 
+// Restore revoked certificate (Admin)
+app.put('/api/admin/certificates/:id/restore', authenticateAdmin, async (req, res) => {
+  try {
+    const certId = req.params.id;
+    await dbRun(`UPDATE certificates SET status = 'ISSUED', certificate_status = 'VALID', revoked = 0 WHERE id = ? OR certificate_id = ?`, [certId, certId]);
+
+    await pushToSupabase('certificates', {
+      id: certId,
+      status: 'ISSUED',
+      revoked: 0
+    });
+
+    await recordAuditLog(
+      req.admin.id,
+      req.admin.username,
+      'RESTORE_CERTIFICATE',
+      'CERTIFICATE',
+      certId,
+      { status: 'VALID' }
+    );
+
+    res.json({ success: true, message: 'Certificate restored successfully' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to restore certificate' });
+  }
+});
+
+// Resend certificate email (Admin) - Section 22
+app.post(['/api/admin/certificates/:id/resend-email', '/api/certificates/:id/resend'], authenticateAdmin, async (req, res) => {
+  try {
+    const certId = req.params.id;
+    const cert = await dbGet(`SELECT * FROM certificates WHERE id = ? OR certificate_id = ?`, [certId, certId]);
+    if (!cert) return res.status(404).json({ error: 'Certificate not found' });
+
+    const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [cert.student_id]);
+    if (!student) return res.status(404).json({ error: 'Student record not found' });
+
+    const host = req.get('host');
+    const docUrl = `${req.protocol}://${host}/api/documents/certificate/${cert.id}/view`;
+    const internId = student.student_id_formatted || cert.internship_id || `SKX-2026-${String(student.id).slice(-4)}`;
+
+    const emailResult = await sendCertificateEmail({
+      to: student.email,
+      student_name: student.full_name,
+      certificate_id: cert.id,
+      intern_id: internId,
+      domain: cert.domain || 'Full Stack Development',
+      duration: cert.duration || '3 Months',
+      issue_date: cert.issue_date,
+      verify_url: `https://www.skyrovix.in/verify/${cert.id}`,
+      document_url: docUrl
+    });
+
+    if (emailResult.success) {
+      await dbRun(`UPDATE certificates SET email_status = 'SENT', email_sent_at = CURRENT_TIMESTAMP WHERE id = ?`, [cert.id]);
+      await logEmailEvent(student.id, 'CERTIFICATE', student.email, cert.id, 'SENT', emailResult.messageId || null);
+      await recordAuditLog(req.admin.id, req.admin.username, 'RESEND_CERTIFICATE_EMAIL', 'CERTIFICATE', cert.id, { email: student.email });
+      res.json({ success: true, message: `Certificate email resent successfully to ${student.email}` });
+    } else {
+      await dbRun(`UPDATE certificates SET email_status = 'FAILED' WHERE id = ?`, [cert.id]);
+      await logEmailEvent(student.id, 'CERTIFICATE', student.email, cert.id, 'FAILED', null, emailResult.error);
+      res.status(500).json({ error: `Email dispatch failed: ${emailResult.error}` });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to resend certificate email: ' + e.message });
+  }
+});
+
 // Get all offer letters (Admin)
 app.get('/api/admin/offer-letters', authenticateAdmin, async (req, res) => {
   try {
@@ -2703,7 +3326,8 @@ app.get('/api/admin/offer-letters', authenticateAdmin, async (req, res) => {
       SELECT 
         ol.*,
         s.email as student_email,
-        s.college
+        s.college,
+        s.student_id_formatted
       FROM offer_letters ol
       JOIN students s ON ol.student_id = s.id
       ORDER BY ol.created_at DESC
@@ -2714,30 +3338,39 @@ app.get('/api/admin/offer-letters', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Generate new offer letter (Admin)
-app.post('/api/admin/offer-letters/generate', authenticateAdmin, async (req, res) => {
+// Generate new offer letter (Admin) - Section 6, 7, 8, 9, 20
+app.post(['/api/admin/offer-letters/generate', '/api/internships/:id/offer-letter'], authenticateAdmin, async (req, res) => {
   try {
-    const { student_id, domain, program, duration, batch } = req.body;
+    const { student_id, domain, program, duration, batch, start_date, end_date } = req.body;
     const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [student_id]);
     if (!student) return res.status(404).json({ error: 'Student not found' });
 
+    const studentIdFormatted = student.student_id_formatted || `SKX-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    await dbRun(`UPDATE students SET student_id_formatted = ? WHERE id = ?`, [studentIdFormatted, student.id]);
+
+    const registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ?`, [student_id]);
+    const internshipId = registration?.internship_id || `SKX-INT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
     const olId = `OL-SKX-${Date.now().toString().slice(-4)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-    const code = `SKX-OL-2026-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const code = `SKX-OL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const finalDomain = domain || registration?.domain || 'Cloud Computing';
+    const finalDuration = duration || registration?.duration || '1 Month';
+    const finalStartDate = start_date || today;
+    const finalEndDate = end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const pdfUrl = `/api/documents/offer-letter/${olId}/view`;
 
     await dbRun(`
-      INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
+      INSERT INTO offer_letters (
+        id, offer_letter_id, student_id, internship_id, student_name,
+        program, domain, role, duration, start_date, end_date, mode,
+        issue_date, status, verification_code, terms, pdf_url, email_status
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
     `, [
-      olId,
-      student.id,
-      student.full_name,
-      program || '3-Month Full Stack Development Internship',
-      domain || 'Full Stack Development',
-      batch || 'Batch 1',
-      duration || '1 Month',
-      today,
-      code
+      olId, code, student.id, internshipId, student.full_name,
+      program || '3-Month Full Stack Development Internship', finalDomain, finalDuration,
+      finalStartDate, finalEndDate, today, code, pdfUrl
     ]);
 
     await pushToSupabase('offer_letters', {
@@ -2745,14 +3378,50 @@ app.post('/api/admin/offer-letters/generate', authenticateAdmin, async (req, res
       student_id: student.id,
       student_name: student.full_name,
       program: program || '3-Month Full Stack Development Internship',
-      domain: domain || 'Full Stack Development',
+      domain: finalDomain,
       batch: batch || 'Batch 1',
-      duration: duration || '1 Month',
+      duration: finalDuration,
       issue_date: today,
       status: 'ACTIVE',
       verification_code: code,
       terms: 'Virtual internship engagement with mandatory milestone deliverables.'
     });
+
+    // Send email automatically
+    let emailSent = false;
+    try {
+      const host = req.get('host');
+      const docUrl = `${req.protocol}://${host}${pdfUrl}`;
+      const emailRes = await sendOfferLetterEmail({
+        to: student.email,
+        student_name: student.full_name,
+        offer_letter_id: code,
+        intern_id: studentIdFormatted,
+        domain: finalDomain,
+        duration: finalDuration,
+        start_date: finalStartDate,
+        end_date: finalEndDate,
+        document_url: docUrl
+      });
+
+      if (emailRes.success) {
+        emailSent = true;
+        await dbRun(`UPDATE offer_letters SET email_status = 'SENT', email_sent_at = CURRENT_TIMESTAMP WHERE id = ?`, [olId]);
+        await logEmailEvent(student.id, 'OFFER_LETTER', student.email, code, 'SENT', emailRes.messageId || null);
+      } else {
+        await dbRun(`UPDATE offer_letters SET email_status = 'FAILED' WHERE id = ?`, [olId]);
+        await logEmailEvent(student.id, 'OFFER_LETTER', student.email, code, 'FAILED', null, emailRes.error);
+      }
+    } catch (emErr) {
+      console.warn('Failed to send offer letter email:', emErr.message);
+    }
+
+    // In-app student notification
+    const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    await dbRun(`
+      INSERT INTO user_notifications (id, user_id, title, message, type)
+      VALUES (?, ?, ?, ?, ?)
+    `, [notifId, student.id, 'Official Offer Letter Issued!', `Your official Offer Letter (${code}) is now available in your dashboard.`, 'offer_letter']);
 
     await recordAuditLog(
       req.admin.id,
@@ -2760,11 +3429,18 @@ app.post('/api/admin/offer-letters/generate', authenticateAdmin, async (req, res
       'GENERATE_OFFER_LETTER',
       'OFFER_LETTER',
       olId,
-      { student_name: student.full_name, verification_code: code }
+      { student_name: student.full_name, verification_code: code, email_sent: emailSent }
     );
 
-    res.status(201).json({ success: true, message: 'Offer letter issued successfully!', offer_letter_id: olId, verification_code: code });
+    res.status(201).json({
+      success: true,
+      message: 'Offer letter issued successfully!',
+      offer_letter_id: olId,
+      verification_code: code,
+      email_sent: emailSent
+    });
   } catch (e) {
+    console.error('Error generating offer letter:', e);
     res.status(500).json({ error: 'Failed to issue offer letter' });
   }
 });
@@ -2773,7 +3449,7 @@ app.post('/api/admin/offer-letters/generate', authenticateAdmin, async (req, res
 app.put('/api/admin/offer-letters/:id/revoke', authenticateAdmin, async (req, res) => {
   try {
     const olId = req.params.id;
-    await dbRun(`UPDATE offer_letters SET status = 'REVOKED' WHERE id = ?`, [olId]);
+    await dbRun(`UPDATE offer_letters SET status = 'REVOKED' WHERE id = ? OR verification_code = ?`, [olId, olId]);
 
     await pushToSupabase('offer_letters', {
       id: olId,
@@ -2792,6 +3468,96 @@ app.put('/api/admin/offer-letters/:id/revoke', authenticateAdmin, async (req, re
     res.json({ success: true, message: 'Offer letter revoked successfully' });
   } catch (e) {
     res.status(500).json({ error: 'Failed to revoke offer letter' });
+  }
+});
+
+// Restore revoked offer letter (Admin)
+app.put('/api/admin/offer-letters/:id/restore', authenticateAdmin, async (req, res) => {
+  try {
+    const olId = req.params.id;
+    await dbRun(`UPDATE offer_letters SET status = 'ACTIVE' WHERE id = ? OR verification_code = ?`, [olId, olId]);
+
+    await pushToSupabase('offer_letters', {
+      id: olId,
+      status: 'ACTIVE'
+    });
+
+    await recordAuditLog(
+      req.admin.id,
+      req.admin.username,
+      'RESTORE_OFFER_LETTER',
+      'OFFER_LETTER',
+      olId,
+      { status: 'ACTIVE' }
+    );
+
+    res.json({ success: true, message: 'Offer letter restored successfully' });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to restore offer letter' });
+  }
+});
+
+// Resend offer letter email (Admin) - Section 22
+app.post(['/api/admin/offer-letters/:id/resend-email', '/api/internships/:id/offer-letter/resend'], authenticateAdmin, async (req, res) => {
+  try {
+    const olId = req.params.id;
+    const ol = await dbGet(`SELECT * FROM offer_letters WHERE id = ? OR verification_code = ?`, [olId, olId]);
+    if (!ol) return res.status(404).json({ error: 'Offer Letter not found' });
+
+    const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [ol.student_id]);
+    if (!student) return res.status(404).json({ error: 'Student record not found' });
+
+    const host = req.get('host');
+    const docUrl = `${req.protocol}://${host}/api/documents/offer-letter/${ol.id}/view`;
+    const internId = student.student_id_formatted || ol.internship_id || `SKX-2026-${String(student.id).slice(-4)}`;
+
+    const emailRes = await sendOfferLetterEmail({
+      to: student.email,
+      student_name: student.full_name,
+      offer_letter_id: ol.verification_code || ol.id,
+      intern_id: internId,
+      domain: ol.domain || 'Cloud Computing',
+      duration: ol.duration || '1 Month',
+      start_date: ol.start_date || ol.issue_date,
+      end_date: ol.end_date,
+      document_url: docUrl
+    });
+
+    if (emailRes.success) {
+      await dbRun(`UPDATE offer_letters SET email_status = 'SENT', email_sent_at = CURRENT_TIMESTAMP WHERE id = ?`, [ol.id]);
+      await logEmailEvent(student.id, 'OFFER_LETTER', student.email, ol.verification_code || ol.id, 'SENT', emailRes.messageId || null);
+      await recordAuditLog(req.admin.id, req.admin.username, 'RESEND_OFFER_LETTER_EMAIL', 'OFFER_LETTER', ol.id, { email: student.email });
+      res.json({ success: true, message: `Offer letter email resent successfully to ${student.email}` });
+    } else {
+      await dbRun(`UPDATE offer_letters SET email_status = 'FAILED' WHERE id = ?`, [ol.id]);
+      await logEmailEvent(student.id, 'OFFER_LETTER', student.email, ol.verification_code || ol.id, 'FAILED', null, emailRes.error);
+      res.status(500).json({ error: `Email dispatch failed: ${emailRes.error}` });
+    }
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to resend offer letter email: ' + e.message });
+  }
+});
+
+// Section 29: Internship Document Access Aliases
+app.get('/api/internships/:id/offer-letter', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const ol = await dbGet(`SELECT * FROM offer_letters WHERE id = ? OR internship_id = ? OR student_id = ? OR verification_code = ?`, [id, id, id, id]);
+    if (!ol) return res.status(404).json({ error: 'Offer Letter not found' });
+    res.json({ success: true, offer_letter: ol });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve offer letter' });
+  }
+});
+
+app.get('/api/internships/:id/certificate', async (req, res) => {
+  try {
+    const id = req.params.id;
+    const cert = await dbGet(`SELECT * FROM certificates WHERE id = ? OR certificate_id = ? OR internship_id = ? OR student_id = ?`, [id, id, id, id]);
+    if (!cert) return res.status(404).json({ error: 'Certificate not found' });
+    res.json({ success: true, certificate: cert });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve certificate' });
   }
 });
 
