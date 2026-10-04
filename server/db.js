@@ -18,10 +18,17 @@ let initEnginePromise = null;
 export async function getDbEngine() {
   if (initEnginePromise) return initEnginePromise;
   initEnginePromise = (async () => {
-    // In serverless / Vercel, always use sql.js (WebAssembly) to avoid glibc version mismatches
+    // In serverless / Vercel, always use sql.js (pure JS sql-asm.js) to avoid glibc & wasm binary mismatches
     if (isServerless) {
       try {
-        const { default: initSqlJs } = await import('sql.js');
+        let initSqlJs;
+        try {
+          const mod = await import('sql.js/dist/sql-asm.js');
+          initSqlJs = mod.default || mod;
+        } catch (e1) {
+          const mod = await import('sql.js');
+          initSqlJs = mod.default || mod;
+        }
         const SQL = await initSqlJs();
         const seedPath = path.join(__dirname, 'skyrovix.db');
         let filebuffer = null;
@@ -32,7 +39,7 @@ export async function getDbEngine() {
         }
         sqlJsDb = filebuffer ? new SQL.Database(filebuffer) : new SQL.Database();
         isUsingSqlJs = true;
-        console.log('⚡ Connected to SQLite database via WebAssembly (sql.js)');
+        console.log('⚡ Connected to SQLite database via Pure JS (sql-asm.js)');
         return;
       } catch (sqlJsErr) {
         console.warn('⚠️ sql.js failed to initialize in serverless:', sqlJsErr.message);
@@ -48,8 +55,15 @@ export async function getDbEngine() {
         else console.log('✅ Connected to SQLite database at', dbPath);
       });
     } catch (sqliteErr) {
-      console.warn('⚠️ sqlite3 native addon failed, falling back to sql.js WebAssembly:', sqliteErr.message);
-      const { default: initSqlJs } = await import('sql.js');
+      console.warn('⚠️ sqlite3 native addon failed, falling back to sql.js pure JS:', sqliteErr.message);
+      let initSqlJs;
+      try {
+        const mod = await import('sql.js/dist/sql-asm.js');
+        initSqlJs = mod.default || mod;
+      } catch (e1) {
+        const mod = await import('sql.js');
+        initSqlJs = mod.default || mod;
+      }
       const SQL = await initSqlJs();
       const seedPath = path.join(__dirname, 'skyrovix.db');
       let filebuffer = null;
@@ -60,7 +74,7 @@ export async function getDbEngine() {
       }
       sqlJsDb = filebuffer ? new SQL.Database(filebuffer) : new SQL.Database();
       isUsingSqlJs = true;
-      console.log('⚡ Connected to SQLite database via WebAssembly (sql.js)');
+      console.log('⚡ Connected to SQLite database via Pure JS (sql-asm.js)');
     }
   })();
   return initEnginePromise;

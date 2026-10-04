@@ -4,7 +4,7 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/index.js": {
-      "includeFiles": "{node_modules/sqlite3/**,server/skyrovix.db,server/**}"
+      "includeFiles": "{node_modules/sql.js/**,server/skyrovix.db,server/**}"
     }
   },
   "rewrites": [
