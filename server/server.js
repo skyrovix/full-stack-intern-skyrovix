@@ -252,8 +252,15 @@ app.post('/api/registrations/apply', async (req, res) => {
         const isRealMode = isCashfreeConfigured();
         const isDemoSession = existingPayment?.payment_session_id?.startsWith('session_sandbox_demo_');
 
-        // Only resume if payment session is valid and not a mock demo in real production mode
-        if (existingPayment && existingPayment.payment_session_id && (!isRealMode || !isDemoSession)) {
+        // Cashfree payment sessions expire within 20 minutes.
+        // If older than 15 minutes, or if created in another mode, or if client requested force_new, do not reuse.
+        const orderAgeMs = existingPayment?.created_at
+          ? (Date.now() - new Date(existingPayment.created_at).getTime())
+          : Infinity;
+        const isExpired = isNaN(orderAgeMs) || orderAgeMs > 15 * 60 * 1000;
+
+        // Only resume if payment session is valid, fresh (<15 mins), not a mock demo in real production mode, and force_new was not requested
+        if (existingPayment && existingPayment.payment_session_id && (!isRealMode || !isDemoSession) && !isExpired && !req.body.force_new) {
           return res.status(200).json({
             success: true,
             is_resumed: true,
@@ -263,12 +270,17 @@ app.post('/api/registrations/apply', async (req, res) => {
             amount: 200.0,
             currency: 'INR',
             payment_session_id: existingPayment.payment_session_id,
-            cashfree_mode: isRealMode ? (process.env.CASHFREE_ENVIRONMENT || 'sandbox') : 'sandbox_simulation',
+            cashfree_mode: isRealMode ? (process.env.CASHFREE_ENVIRONMENT || 'production') : 'sandbox_simulation',
             customer_name: student.full_name,
             customer_email: student.email,
             customer_phone: student.mobile,
             message: 'Resuming your active registration payment order.'
           });
+        }
+
+        // If existing payment is expired, mark it as EXPIRED in DB so it doesn't get picked up again
+        if (existingPayment && isExpired) {
+          await dbRun(`UPDATE payments SET status = 'EXPIRED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [existingPayment.id]);
         }
       }
 
@@ -313,8 +325,14 @@ app.post('/api/registrations/apply', async (req, res) => {
 
     // Generate unique Cashfree Order ID
     const orderId = generateOrderId();
-    const returnUrl = `${process.env.APP_URL || 'http://localhost:5173'}/payment/status?order_id=${orderId}`;
-    const notifyUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/api/payments/cashfree/webhook`;
+    const isProd = (process.env.CASHFREE_ENVIRONMENT || 'production').toLowerCase() === 'production';
+    const prodAppUrl = 'https://fullstack-internship.skyrovix.in';
+    const returnUrl = isProd
+      ? `${prodAppUrl}/payment/status?order_id=${orderId}`
+      : `${process.env.APP_URL || 'http://localhost:5173'}/payment/status?order_id=${orderId}`;
+    const notifyUrl = isProd
+      ? `${prodAppUrl}/api/payments/cashfree/webhook`
+      : `${process.env.SERVER_URL || 'http://localhost:5000'}/api/payments/cashfree/webhook`;
 
     // Create Cashfree PG Order (Backend only)
     const cfResult = await createCashfreeOrder({
@@ -448,7 +466,7 @@ app.post('/api/payments/verify', async (req, res) => {
       }
     }
 
-    if ((verification.payment_status === 'SUCCESS' || verification.is_paid) && verification.order_status === 'PAID') {
+    if (verification.is_paid || verification.payment_status === 'SUCCESS' || verification.order_status === 'PAID') {
       // Mark as PAID
       await dbRun(
         `UPDATE payments SET status = 'PAID', cashfree_payment_id = ?, payment_method = ?, raw_response = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,

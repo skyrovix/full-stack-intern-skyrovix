@@ -20,15 +20,28 @@ export const CashfreeModal = ({
   orderDetails,
   onPaymentSuccess,
   onPaymentFailed,
-  onPaymentPending
+  onPaymentPending,
+  onRetryNewOrder
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [currentOrder, setCurrentOrder] = useState(orderDetails);
+
+  useEffect(() => {
+    setCurrentOrder(orderDetails);
+    setErrorMessage('');
+  }, [orderDetails]);
 
   // Real Cashfree Web SDK checkout trigger
-  const handleProceedRealCashfree = (target = '_modal') => {
-    if (!orderDetails?.payment_session_id) {
+  const handleProceedRealCashfree = (target = '_modal', activeOrder = currentOrder) => {
+    const session = activeOrder?.payment_session_id;
+    if (!session) {
       setErrorMessage('Payment session could not be established. Please retry.');
+      return;
+    }
+
+    if (session.startsWith('session_sandbox_demo_')) {
+      setErrorMessage('Demo simulation mode: Live Cashfree merchant credentials required for checkout.');
       return;
     }
 
@@ -42,17 +55,17 @@ export const CashfreeModal = ({
     setErrorMessage('');
 
     try {
-      const mode = orderDetails.cashfree_mode === 'production' ? 'production' : 'sandbox';
+      const mode = activeOrder.cashfree_mode === 'sandbox' ? 'sandbox' : 'production';
       const cashfree = window.Cashfree({ mode });
 
       cashfree.checkout({
-        paymentSessionId: orderDetails.payment_session_id,
+        paymentSessionId: session,
         redirectTarget: target
       }).then(async (result) => {
         setIsProcessing(false);
         if (result?.error) {
           console.error('Cashfree Checkout Error:', result.error);
-          setErrorMessage(result.error.message || 'Payment cancelled or closed.');
+          setErrorMessage(result.error.message || 'Payment cancelled or session expired.');
           if (onPaymentFailed) {
             onPaymentFailed({ message: result.error.message || 'Payment cancelled or failed' });
           }
@@ -62,7 +75,7 @@ export const CashfreeModal = ({
             const res = await fetch('/api/payments/verify', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ order_id: orderDetails.order_id })
+              body: JSON.stringify({ order_id: activeOrder.order_id })
             });
             const vData = await res.json();
             if (vData.verified && (vData.payment_status === 'SUCCESS' || vData.registration_status === 'CONFIRMED')) {
@@ -71,7 +84,7 @@ export const CashfreeModal = ({
               if (onPaymentFailed) onPaymentFailed(vData);
             }
           } catch (e) {
-            if (onPaymentPending) onPaymentPending({ order_id: orderDetails.order_id });
+            if (onPaymentPending) onPaymentPending({ order_id: activeOrder.order_id });
           }
         }
       });
@@ -79,11 +92,10 @@ export const CashfreeModal = ({
       setIsProcessing(false);
       console.error('Failed to trigger modal Cashfree SDK, switching to redirect:', err);
       try {
-        const cashfree = window.Cashfree({
-          mode: orderDetails.cashfree_mode === 'production' ? 'production' : 'sandbox'
-        });
+        const mode = activeOrder.cashfree_mode === 'sandbox' ? 'sandbox' : 'production';
+        const cashfree = window.Cashfree({ mode });
         cashfree.checkout({
-          paymentSessionId: orderDetails.payment_session_id,
+          paymentSessionId: session,
           redirectTarget: '_self'
         });
       } catch (e2) {
@@ -92,17 +104,51 @@ export const CashfreeModal = ({
     }
   };
 
+  // Generate a fresh Cashfree order session on demand
+  const handleGenerateFreshOrder = async () => {
+    setIsProcessing(true);
+    setErrorMessage('');
+    try {
+      const sName = currentOrder?.customer_name;
+      const sEmail = currentOrder?.customer_email;
+      const sPhone = currentOrder?.customer_phone;
+      const res = await fetch('/api/registrations/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: sName || 'Intern',
+          email: sEmail,
+          mobile: sPhone,
+          force_new: true,
+          agreedTerms: true
+        })
+      });
+      const data = await res.json();
+      if (data.payment_session_id) {
+        setCurrentOrder(data);
+        setIsProcessing(false);
+        handleProceedRealCashfree('_modal', data);
+      } else {
+        setIsProcessing(false);
+        setErrorMessage(data.error || data.message || 'Could not generate a fresh order.');
+      }
+    } catch (e) {
+      setIsProcessing(false);
+      setErrorMessage('Network error creating fresh session. Please retry.');
+    }
+  };
+
   // Auto-launch Cashfree modal when checkout opens
   useEffect(() => {
-    if (isOpen && orderDetails?.payment_session_id) {
+    if (isOpen && currentOrder?.payment_session_id && !currentOrder.payment_session_id.startsWith('session_sandbox_demo_')) {
       const timer = setTimeout(() => {
         if (window.Cashfree) {
-          handleProceedRealCashfree('_modal');
+          handleProceedRealCashfree('_modal', currentOrder);
         }
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, orderDetails?.payment_session_id]);
+  }, [isOpen, currentOrder?.payment_session_id]);
 
   if (!isOpen || !orderDetails) return null;
 
@@ -149,7 +195,7 @@ export const CashfreeModal = ({
               Skyrovix Batch 1 Program Fee
             </p>
             <p className="text-[11px] text-slate-500 font-mono">
-              Order ID: <span className="font-semibold text-sky-700">{orderDetails.order_id}</span>
+              Order ID: <span className="font-semibold text-sky-700">{currentOrder?.order_id || orderDetails.order_id}</span>
             </p>
           </div>
           <div className="text-right">
@@ -180,11 +226,11 @@ export const CashfreeModal = ({
             <div className="grid grid-cols-2 gap-2 text-slate-800">
               <div>
                 <span className="text-slate-400 block text-[10px]">Registered Name</span>
-                <span className="font-bold truncate block">{orderDetails.customer_name || 'Student Intern'}</span>
+                <span className="font-bold truncate block">{currentOrder?.customer_name || orderDetails.customer_name || 'Student Intern'}</span>
               </div>
               <div>
                 <span className="text-slate-400 block text-[10px]">Registered Email</span>
-                <span className="font-bold truncate block font-mono text-[11px]">{orderDetails.customer_email || 'student@skyrovix.com'}</span>
+                <span className="font-bold truncate block font-mono text-[11px]">{currentOrder?.customer_email || orderDetails.customer_email || 'student@skyrovix.com'}</span>
               </div>
             </div>
           </div>
@@ -215,12 +261,22 @@ export const CashfreeModal = ({
 
           {/* Error notice if popup was closed or failed */}
           {errorMessage && (
-            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold">Payment notice:</p>
-                <p>{errorMessage}</p>
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-2.5">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Payment notice:</p>
+                  <p>{errorMessage}</p>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={handleGenerateFreshOrder}
+                disabled={isProcessing}
+                className="w-full py-2.5 px-3 bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5 text-xs active:scale-[0.99]"
+              >
+                <span>{isProcessing ? 'Generating...' : '🔄 Create Fresh Payment Session & Pay'}</span>
+              </button>
             </div>
           )}
 
@@ -228,7 +284,7 @@ export const CashfreeModal = ({
           <div className="space-y-2.5 pt-1">
             <button
               type="button"
-              onClick={() => handleProceedRealCashfree('_modal')}
+              onClick={() => handleProceedRealCashfree('_modal', currentOrder)}
               disabled={isProcessing}
               className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 hover:from-emerald-700 hover:to-sky-800 text-white rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.99]"
             >
@@ -239,7 +295,7 @@ export const CashfreeModal = ({
 
             <button
               type="button"
-              onClick={() => handleProceedRealCashfree('_self')}
+              onClick={() => handleProceedRealCashfree('_self', currentOrder)}
               disabled={isProcessing}
               className="w-full py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
             >
