@@ -841,7 +841,7 @@ app.post(['/api/auth/login', '/api/students/login'], async (req, res) => {
     });
   } catch (error) {
     console.error('Student login error:', error);
-    res.status(500).json({ error: 'Server error during login. Please try again.', details: error.message, stack: error.stack });
+    res.status(500).json({ error: 'Server error during login. Please try again.' });
   }
 });
 
