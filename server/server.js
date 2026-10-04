@@ -140,7 +140,7 @@ app.get('/api/public/config', async (req, res) => {
       },
       whatsapp_group_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
       registration_active: regActive?.value !== 'false',
-      cashfree_mode: isCashfreeConfigured() ? (process.env.CASHFREE_ENVIRONMENT || 'sandbox') : 'sandbox_simulation'
+      cashfree_mode: isCashfreeConfigured() ? getCashfreeEnvironment() : 'sandbox_simulation'
     });
   } catch (error) {
     console.error('Error fetching public config:', error);
