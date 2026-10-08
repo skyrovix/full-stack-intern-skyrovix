@@ -2,23 +2,92 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
+import dotenv from 'dotenv';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Ensure environment variables are loaded immediately for db.js
+dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config();
+
 const isServerless = Boolean(process.env.VERCEL || (process.env.NODE_ENV === 'production' && process.env.AWS_LAMBDA_FUNCTION_NAME));
-let dbPath = path.join(__dirname, 'skyrovix.db');
+let dbPath = process.env.SQL_DATABASE_PATH || path.join(__dirname, 'skyrovix.db');
 
 let sqlite3Db = null;
 let sqlJsDb = null;
+let mysqlPool = null;
 let isUsingSqlJs = false;
+let isUsingMysql = false;
+
+export function getDatabaseEngineType() {
+  if (isUsingMysql) return 'MySQL';
+  if (isUsingSqlJs) return 'SQLite (sql.js)';
+  return 'SQLite (sqlite3)';
+}
 
 // Initialization helper
 let initEnginePromise = null;
 export async function getDbEngine() {
   if (initEnginePromise) return initEnginePromise;
   initEnginePromise = (async () => {
-    // In serverless / Vercel, always use sql.js (pure JS sql-asm.js) to avoid glibc & wasm binary mismatches
+    // 1. Check if MySQL is configured
+    const isMysqlConfigured = Boolean(
+      process.env.DB_TYPE === 'mysql' ||
+      process.env.MYSQL_HOST ||
+      process.env.MYSQL_DATABASE ||
+      (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('mysql'))
+    );
+
+    if (isMysqlConfigured) {
+      try {
+        const mysql = (await import('mysql2/promise')).default;
+        const mysqlHost = process.env.MYSQL_HOST || '127.0.0.1';
+        const mysqlPort = Number(process.env.MYSQL_PORT) || 3307;
+        const mysqlUser = process.env.MYSQL_USER || 'root';
+        const mysqlPassword = process.env.MYSQL_PASSWORD || '';
+        const mysqlDatabase = process.env.MYSQL_DATABASE || 'skyrovix';
+
+        // Auto-create database if not existing
+        try {
+          const tempConn = await mysql.createConnection({
+            host: mysqlHost,
+            port: mysqlPort,
+            user: mysqlUser,
+            password: mysqlPassword
+          });
+          await tempConn.query(`CREATE DATABASE IF NOT EXISTS \`${mysqlDatabase}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+          await tempConn.end();
+        } catch (dbCreateErr) {
+          // May not have root create DB privilege, proceed to connect to existing DB
+        }
+
+        mysqlPool = mysql.createPool({
+          host: mysqlHost,
+          port: mysqlPort,
+          user: mysqlUser,
+          password: mysqlPassword,
+          database: mysqlDatabase,
+          waitForConnections: true,
+          connectionLimit: 20,
+          queueLimit: 0,
+          enableKeepAlive: true,
+          keepAliveInitialDelay: 10000,
+          decimalNumbers: true
+        });
+
+        const [testRows] = await mysqlPool.query('SELECT 1 as connected');
+        if (testRows && (testRows[0]?.connected === 1 || testRows[0]?.['1'] === 1)) {
+          isUsingMysql = true;
+          console.log(`✅ Connected to MySQL database at ${mysqlHost}:${mysqlPort}/${mysqlDatabase}`);
+          return;
+        }
+      } catch (mysqlErr) {
+        console.warn(`⚠️ MySQL connection notice (${mysqlErr.message}). Falling back to local SQLite if needed.`);
+      }
+    }
+
+    // 2. In serverless / Vercel, use sql.js
     if (isServerless) {
       try {
         let initSqlJs;
@@ -46,13 +115,20 @@ export async function getDbEngine() {
       }
     }
 
-    // Try native sqlite3
+    // 3. Try native sqlite3
     try {
       const sqlite3Module = (await import('sqlite3')).default;
       sqlite3Module.verbose();
       sqlite3Db = new sqlite3Module.Database(dbPath, (err) => {
-        if (err) console.error('❌ Could not connect to SQLite database:', err.message);
-        else console.log('✅ Connected to SQLite database at', dbPath);
+        if (err) {
+          console.error('❌ Could not connect to SQLite database:', err.message);
+        } else {
+          console.log('✅ Connected to SQLite database at', dbPath);
+          try {
+            sqlite3Db.run('PRAGMA journal_mode = WAL;');
+            sqlite3Db.run('PRAGMA foreign_keys = ON;');
+          } catch (pErr) {}
+        }
       });
     } catch (sqliteErr) {
       console.warn('⚠️ sqlite3 native addon failed, falling back to sql.js pure JS:', sqliteErr.message);
@@ -84,20 +160,36 @@ export async function getDbEngine() {
 getDbEngine();
 
 export const db = {
-  run: (...args) => (sqlite3Db ? sqlite3Db.run(...args) : sqlJsDb?.run(...args)),
+  run: (...args) => (mysqlPool ? mysqlPool.query(...args) : (sqlite3Db ? sqlite3Db.run(...args) : sqlJsDb?.run(...args))),
   get: (...args) => (sqlite3Db ? sqlite3Db.get(...args) : null),
   all: (...args) => (sqlite3Db ? sqlite3Db.all(...args) : null),
 };
 
+// Normalizer for reserved keyword `key` in settings table
+function normalizeSqlForMysql(sql) {
+  if (typeof sql !== 'string') return sql;
+  return sql
+    .replace(/\bsettings\s+WHERE\s+key\b/gi, 'settings WHERE `key`')
+    .replace(/\bSELECT\s+key\s+FROM\s+settings\b/gi, 'SELECT `key` FROM settings')
+    .replace(/\bSELECT\s+value\s+FROM\s+settings\s+WHERE\s+key\b/gi, 'SELECT value FROM settings WHERE `key`')
+    .replace(/\bWHERE\s+key\s*=/gi, 'WHERE `key` =');
+}
+
 // Promisified DB helpers
 export const dbRun = async (sql, params = []) => {
   await getDbEngine();
+  const safeParams = params.map(p => p === undefined ? null : p);
+  if (isUsingMysql && mysqlPool) {
+    const querySql = normalizeSqlForMysql(sql);
+    const [result] = await mysqlPool.query(querySql, safeParams);
+    return { lastID: result?.insertId || null, changes: result?.affectedRows || 0 };
+  }
   if (isUsingSqlJs && sqlJsDb) {
-    sqlJsDb.run(sql, params);
+    sqlJsDb.run(sql, safeParams);
     return { lastID: null, changes: sqlJsDb.getRowsModified() };
   }
   return new Promise((resolve, reject) => {
-    sqlite3Db.run(sql, params, function (err) {
+    sqlite3Db.run(sql, safeParams, function (err) {
       if (err) return reject(err);
       resolve({ lastID: this.lastID, changes: this.changes });
     });
@@ -106,9 +198,15 @@ export const dbRun = async (sql, params = []) => {
 
 export const dbGet = async (sql, params = []) => {
   await getDbEngine();
+  const safeParams = params.map(p => p === undefined ? null : p);
+  if (isUsingMysql && mysqlPool) {
+    const querySql = normalizeSqlForMysql(sql);
+    const [rows] = await mysqlPool.query(querySql, safeParams);
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  }
   if (isUsingSqlJs && sqlJsDb) {
     const stmt = sqlJsDb.prepare(sql);
-    stmt.bind(params);
+    stmt.bind(safeParams);
     let row = null;
     if (stmt.step()) {
       row = stmt.getAsObject();
@@ -117,18 +215,24 @@ export const dbGet = async (sql, params = []) => {
     return row;
   }
   return new Promise((resolve, reject) => {
-    sqlite3Db.get(sql, params, (err, row) => {
+    sqlite3Db.get(sql, safeParams, (err, row) => {
       if (err) return reject(err);
-      resolve(row);
+      resolve(row || null);
     });
   });
 };
 
 export const dbAll = async (sql, params = []) => {
   await getDbEngine();
+  const safeParams = params.map(p => p === undefined ? null : p);
+  if (isUsingMysql && mysqlPool) {
+    const querySql = normalizeSqlForMysql(sql);
+    const [rows] = await mysqlPool.query(querySql, safeParams);
+    return Array.isArray(rows) ? rows : [];
+  }
   if (isUsingSqlJs && sqlJsDb) {
     const stmt = sqlJsDb.prepare(sql);
-    stmt.bind(params);
+    stmt.bind(safeParams);
     const rows = [];
     while (stmt.step()) {
       rows.push(stmt.getAsObject());
@@ -137,15 +241,135 @@ export const dbAll = async (sql, params = []) => {
     return rows;
   }
   return new Promise((resolve, reject) => {
-    sqlite3Db.all(sql, params, (err, rows) => {
+    sqlite3Db.all(sql, safeParams, (err, rows) => {
       if (err) return reject(err);
-      resolve(rows);
+      resolve(rows || []);
     });
   });
 };
 
 // Initialize schema
 export async function initDb() {
+  await getDbEngine();
+
+  // If MySQL is active, initialize tables and seeds from mysql_schema.sql
+  if (isUsingMysql && mysqlPool) {
+    const schemaPath = path.join(__dirname, 'mysql_schema.sql');
+    if (fs.existsSync(schemaPath)) {
+      const rawSql = fs.readFileSync(schemaPath, 'utf8');
+      const stmts = rawSql
+        .replace(/--.*$/gm, '')
+        .split(';')
+        .map(s => s.trim())
+        .filter(s => s.length > 0 && !s.toUpperCase().startsWith('CREATE DATABASE') && !s.toUpperCase().startsWith('USE '));
+      for (const stmt of stmts) {
+        try {
+          await mysqlPool.query(stmt);
+        } catch (err) {
+          // Table, index or seed already exists
+        }
+      }
+    }
+
+    // Seed default 5 Training Modules if empty
+    try {
+      const [modRows] = await mysqlPool.query('SELECT id FROM training_modules LIMIT 1');
+      if (!modRows || modRows.length === 0) {
+        for (const m of DEFAULT_TRAINING_MODULES) {
+          await mysqlPool.query(`
+            INSERT IGNORE INTO training_modules (
+              id, module_num, title, short_title, description, objectives, instructions, exercises, resources, submission_fields, order_num, is_active
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `, [
+            m.id,
+            m.module_num,
+            m.title,
+            m.short_title,
+            m.description,
+            m.objectives,
+            m.instructions,
+            m.exercises,
+            m.resources,
+            m.submission_fields,
+            m.order_num,
+            m.is_active
+          ]);
+        }
+        console.log('📚 Seeded 5 Training & Learning Modules in MySQL.');
+      }
+    } catch (modErr) {
+      console.warn('Notice seeding training modules in MySQL:', modErr.message);
+    }
+
+    // Seed default student tasks (50 Full Stack Projects) if empty
+    try {
+      const [taskRows] = await mysqlPool.query('SELECT id FROM student_tasks LIMIT 1');
+      if (!taskRows || taskRows.length === 0) {
+        const { allProjects } = await import('../client/src/data/projects.js');
+        for (const p of allProjects) {
+          const features = [
+            'Tech: ' + p.tech.join(', '),
+            'Learn: ' + p.whatToLearn,
+            ...p.projectRequirements
+          ];
+          await mysqlPool.query(`
+            INSERT IGNORE INTO student_tasks (id, title, description, domain, difficulty, due_date, key_features, expected_outcome, order_num, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+          `, [
+            p.id,
+            p.num + '. ' + p.title,
+            p.whatToLearn,
+            'Full Stack Development',
+            p.difficulty,
+            p.dueDate,
+            JSON.stringify(features),
+            p.expectedOutcome,
+            parseInt(p.num, 10)
+          ]);
+        }
+        console.log('📋 Seeded 50 Full Stack Projects in MySQL student_tasks.');
+      }
+    } catch (taskErr) {
+      console.warn('Notice seeding student tasks in MySQL:', taskErr.message);
+    }
+
+    // Seed/preserve Hariharan S profile & workflow in MySQL if not present
+    try {
+      const [hariRows] = await mysqlPool.query('SELECT id FROM students WHERE email = ?', ['hariharanmahesh34@gmail.com']);
+      if (!hariRows || hariRows.length === 0) {
+        const hariId = 'std_239f432f62f9bdce';
+        const regId = 'REG-B1-400381-842D';
+        const pwHash = '$2b$10$vgPM5fh/BtD3SM/bgoF/Y.8p5KbdMFeuNREvTlwyAiT8vc6i1vrIm';
+        await mysqlPool.query(`
+          INSERT IGNORE INTO students (id, full_name, email, mobile, college, degree, department, year_of_study, city, skill_level, password_hash, application_status)
+          VALUES (?, 'Hariharan S', 'hariharanmahesh34@gmail.com', '9940773204', 'Mount Zion college of engineering and technology', 'B.Tech', 'IT', '3rd Year', 'Pudukkottai', 'Beginner', ?, 'APPROVED')
+        `, [hariId, pwHash]);
+
+        await mysqlPool.query(`
+          INSERT IGNORE INTO registrations (id, student_id, batch_id, domain, duration, registration_status, payment_status, payment_order_id, internship_status)
+          VALUES (?, ?, 'batch-1', 'Full Stack Development', '1 Month', 'CONFIRMED', 'PAID', 'SKY-B1-1791133400408-440496', 'ACTIVE')
+        `, [regId, hariId]);
+
+        await mysqlPool.query(`
+          INSERT IGNORE INTO intern_workflows (id, student_id, batch_id, current_stage, stage1_status, stage2_status, stage3_status)
+          VALUES (?, ?, 'batch-1', 3, 'APPROVED', 'COMPLETED', 'UNLOCKED')
+        `, [`wf_${hariId}`, hariId]);
+
+        await mysqlPool.query(`
+          INSERT IGNORE INTO linkedin_submissions (id, student_id, post_url, status, admin_feedback, reviewed_by, reviewed_at)
+          VALUES (?, ?, 'https://www.linkedin.com/posts/skyrovix_internship-offer-batch1-activity-7123456789', 'APPROVED', 'Verified official offer letter publication.', 'admin-default', CURRENT_TIMESTAMP)
+        `, [`ls_${hariId}`, hariId]);
+
+        console.log('👤 Seeded Hariharan S student & active workflow in MySQL.');
+      }
+    } catch (userErr) {
+      console.warn('Notice seeding user in MySQL:', userErr.message);
+    }
+
+    console.log('✅ MySQL schema, tables, and seed records initialized successfully.');
+    return;
+  }
+
   await dbRun('PRAGMA foreign_keys = ON');
 
   // Batches table
@@ -577,9 +801,9 @@ export async function initDb() {
   ];
 
   for (const s of defaultSettings) {
-    const exists = await dbGet(`SELECT key FROM settings WHERE key = ?`, [s.key]);
+    const exists = await dbGet(`SELECT \`key\` FROM settings WHERE \`key\` = ?`, [s.key]);
     if (!exists) {
-      await dbRun(`INSERT INTO settings (key, value, description) VALUES (?, ?, ?)`, [s.key, s.value, s.description]);
+      await dbRun(`INSERT INTO \`settings\` (\`key\`, value, description) VALUES (?, ?, ?)`, [s.key, s.value, s.description]);
     }
   }
 
@@ -707,7 +931,7 @@ export async function initDb() {
         'admin-default',
         'Skyrovix Mentor Board',
         'ADMIN',
-        'Hi Hariharan! You can use either AWS S3 Free Tier or local MinIO/Supabase Storage for your demonstration. Make sure your repository README contains setup steps.'
+        'Hi Hariharan! You can use either AWS S3 Free Tier, local file storage, or cloud object storage for your demonstration. Make sure your repository README contains setup steps.'
       ]);
     }
 

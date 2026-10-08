@@ -58,6 +58,7 @@ import vinixLogo from '../assets/vinix.png';
 import yrLogo from '../assets/yr-tech logo.png';
 import { StudentGuideView } from './StudentGuideView';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
+import { handleDownloadOfferLetter, handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
 
 export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerPayment }) => {
   // Navigation & View State
@@ -1307,11 +1308,16 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
                         <button
                           onClick={() => {
-                            setSelectedOfferLetter(offerLettersList[0] || null);
-                            setShowOfferLetterModal(true);
-                            setTimeout(() => window.print(), 300);
+                            const ol = offerLettersList[0];
+                            handleDownloadOfferLetter({
+                              fullName: ol?.student_name || internName,
+                              internId: ol?.internship_id || ol?.intern_id || studentFormattedId,
+                              domain: ol?.domain || domainName,
+                              issuedAt: ol?.issue_date || enrollmentDate,
+                              duration: parseInt(ol?.duration, 10) || 1
+                            });
                           }}
-                          className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs"
+                          className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5 text-cyan-400" />
                           <span>Download Offer Letter</span>
@@ -2532,13 +2538,22 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                           <span>View</span>
                         </a>
 
-                        <a
-                          href={`/api/documents/certificate/${cert.id}/download`}
-                          className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+                        <button
+                          onClick={() => {
+                            handleDownloadCertificate({
+                              fullName: cert.student_name || internName,
+                              internId: cert.internship_id || cert.intern_id || studentFormattedId,
+                              domain: cert.domain || domainName,
+                              certId: cert.certificate_id || cert.id,
+                              issuedAt: cert.issue_date || enrollmentDate,
+                              verifyUrl: `https://skyrovix.online/verify-certificate?id=${cert.certificate_id || cert.id}`
+                            });
+                          }}
+                          className="px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                         >
                           <Download className="w-3.5 h-3.5" />
-                          <span>Download</span>
-                        </a>
+                          <span>Download PDF</span>
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -2595,13 +2610,21 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                         <span>View Corporate Letter</span>
                       </button>
 
-                      <a
-                        href={`/api/documents/offer-letter/${ol.id}/download`}
-                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition"
+                      <button
+                        onClick={() => {
+                          handleDownloadOfferLetter({
+                            fullName: ol.student_name || internName,
+                            internId: ol.internship_id || ol.intern_id || studentFormattedId,
+                            domain: ol.domain || domainName,
+                            issuedAt: ol.issue_date || enrollmentDate,
+                            duration: parseInt(ol.duration, 10) || 1
+                          });
+                        }}
+                        className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
                         <span>Download PDF</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2975,13 +2998,21 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                       <ExternalLink className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">Open Full Window</span>
                     </a>
-                    <a
-                      href={`/api/documents/offer-letter/${selectedOfferLetter.id}/download`}
-                      className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1.5 transition"
+                    <button
+                      onClick={() => {
+                        handleDownloadOfferLetter({
+                          fullName: selectedOfferLetter?.student_name || internName,
+                          internId: selectedOfferLetter?.internship_id || selectedOfferLetter?.intern_id || studentFormattedId,
+                          domain: selectedOfferLetter?.domain || domainName,
+                          issuedAt: selectedOfferLetter?.issue_date || enrollmentDate,
+                          duration: parseInt(selectedOfferLetter?.duration, 10) || 1
+                        });
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Download className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Download</span>
-                    </a>
+                      <span className="hidden sm:inline">Download PDF</span>
+                    </button>
                   </>
                 )}
                 <button

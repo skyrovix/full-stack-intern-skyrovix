@@ -454,6 +454,8 @@ export async function renderCertificateHtml(data) {
   const maheshSig = getImageBase64('mahesh sig.jpeg');
   const sealImg = getImageBase64('seal.jpg');
   const msmeImg = getImageBase64('msme.png');
+  const vinixImg = getImageBase64('vinix.png');
+  const yrTechImg = getImageBase64('yr-tech logo.png');
 
   const studentName = data.student_name || 'Vishal R';
   const domain = data.domain || 'Full Stack Development';
@@ -485,128 +487,136 @@ export async function renderCertificateHtml(data) {
       max-width: 1050px;
       background: #ffffff;
       padding: 24px;
-      border: 8px solid #0a2540;
+      border: 8px solid #07284a;
       border-radius: 4px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.12);
       position: relative;
     }
     .cert-inner-frame {
-      border: 2px solid #e2e8f0;
-      padding: 36px 48px 28px 48px;
+      border: 1px solid #e2e8f0;
+      padding: 32px 44px 24px 44px;
       position: relative;
     }
     .cert-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
-    .header-logo-box {
-      width: 72px;
-      height: 72px;
-      background: #0a2540;
-      border-radius: 8px;
+    .header-logo-group {
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 8px;
+      gap: 12px;
+      width: 180px;
     }
-    .header-logo-box img {
-      max-width: 100%;
-      max-height: 100%;
-      filter: brightness(0) invert(1);
+    .header-logo-group img.logo-main {
+      height: 44px;
+      object-fit: contain;
+    }
+    .header-logo-group img.logo-partner {
+      height: 32px;
+      object-fit: contain;
     }
     .header-title-box {
       text-align: center;
+      flex: 1;
     }
     .brand-main {
-      font-size: 22px;
+      font-size: 20px;
       font-weight: 900;
-      letter-spacing: 2px;
-      color: #0a2540;
+      letter-spacing: 4px;
+      color: #07284a;
     }
     .brand-sub {
-      font-size: 12px;
-      color: #475569;
+      font-size: 11px;
+      color: #64748b;
       font-weight: 600;
       margin-top: 2px;
     }
-    .msme-box {
-      width: 72px;
-      text-align: right;
+    .header-right-group {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+      width: 180px;
     }
-    .msme-box img {
-      height: 52px;
+    .header-right-group img.logo-partner {
+      height: 32px;
+      object-fit: contain;
+    }
+    .header-right-group img.logo-msme {
+      height: 36px;
       object-fit: contain;
     }
     .cert-title-container {
       text-align: center;
-      margin: 24px 0 20px 0;
+      margin: 16px 0 16px 0;
     }
     .main-title {
-      font-size: 38px;
+      font-size: 34px;
       font-weight: 900;
-      color: #0c2847;
+      color: #07284a;
       letter-spacing: 4px;
       line-height: 1;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
     .sub-title {
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
-      color: #475569;
-      letter-spacing: 8px;
+      color: #64748b;
+      letter-spacing: 7px;
       text-transform: uppercase;
     }
     .presentation-line {
-      font-size: 13px;
+      font-size: 12px;
       color: #64748b;
-      margin-top: 20px;
-      font-style: italic;
+      margin-top: 16px;
     }
     .recipient-name {
-      font-size: 40px;
+      font-size: 32px;
       font-weight: 900;
-      color: #0a2540;
-      margin: 12px 0 16px 0;
-      letter-spacing: 0.5px;
+      color: #07284a;
+      margin: 8px 0 12px 0;
+      text-decoration: underline;
+      text-decoration-color: #0284c7;
+      text-underline-offset: 6px;
     }
     .narrative-text {
-      font-size: 13px;
-      color: #334155;
-      max-width: 720px;
+      font-size: 12px;
+      color: #475569;
+      max-width: 680px;
       margin: 0 auto;
-      line-height: 1.6;
+      line-height: 1.55;
     }
     .narrative-text strong {
-      color: #0a2540;
+      color: #07284a;
     }
     .signatures-section {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      margin-top: 36px;
-      padding: 0 20px;
+      margin-top: 24px;
+      padding: 0 16px;
     }
     .sig-col {
-      width: 200px;
+      width: 160px;
       text-align: center;
     }
     .sig-signature-img {
-      height: 48px;
-      max-width: 170px;
+      height: 38px;
+      max-width: 150px;
       object-fit: contain;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .sig-person {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 800;
-      color: #0a2540;
-      border-top: 1.5px solid #0a2540;
-      padding-top: 4px;
+      color: #07284a;
+      border-top: 1.2px solid #1e293b;
+      padding-top: 3px;
     }
     .sig-designation {
-      font-size: 10px;
+      font-size: 9px;
       color: #64748b;
       font-weight: 600;
     }
@@ -614,20 +624,20 @@ export async function renderCertificateHtml(data) {
       text-align: center;
     }
     .seal-col img {
-      width: 90px;
-      height: 90px;
+      width: 78px;
+      height: 78px;
       object-fit: contain;
     }
     .footer-credentials {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 28px;
-      padding-top: 14px;
-      border-top: 1px solid #cbd5e1;
-      font-size: 11px;
+      margin-top: 20px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 9.5px;
       font-family: monospace;
-      color: #475569;
+      color: #64748b;
     }
     .verify-link {
       color: #0284c7;
@@ -638,8 +648,8 @@ export async function renderCertificateHtml(data) {
       display: inline-block;
       vertical-align: middle;
       margin-left: 6px;
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
     }
   </style>
 </head>
@@ -647,15 +657,17 @@ export async function renderCertificateHtml(data) {
   <div class="cert-outer-frame">
     <div class="cert-inner-frame">
       <div class="cert-header">
-        <div class="header-logo-box">
-          <img src="${logoImg}" alt="Skyrovix" />
+        <div class="header-logo-group">
+          ${logoImg ? `<img src="${logoImg}" alt="Skyrovix" class="logo-main" />` : ''}
+          ${vinixImg ? `<img src="${vinixImg}" alt="Vinix" class="logo-partner" />` : ''}
         </div>
         <div class="header-title-box">
           <div class="brand-main">SKYROVIX</div>
           <div class="brand-sub">Empowering Future Innovators</div>
         </div>
-        <div class="msme-box">
-          <img src="${msmeImg}" alt="Govt MSME Emblem" />
+        <div class="header-right-group">
+          ${yrTechImg ? `<img src="${yrTechImg}" alt="YR Tech" class="logo-partner" />` : ''}
+          ${msmeImg ? `<img src="${msmeImg}" alt="Govt MSME Emblem" class="logo-msme" />` : ''}
         </div>
       </div>
 
@@ -665,7 +677,7 @@ export async function renderCertificateHtml(data) {
         <div class="presentation-line">This certificate is proudly presented to</div>
         <div class="recipient-name">${studentName}</div>
         <div class="narrative-text">
-          for successfully completing the task-based virtual internship program in <strong>${domain}</strong> at <strong>Skyrovix IT Solutions</strong>, demonstrating dedication, technical skill, and professional excellence throughout the program.
+          for successfully completing the rigorous task-based virtual internship in <strong>${domain}</strong> at Skyrovix, demonstrating consistent technical competence, problem-solving skills, and dedication to industry-standard deliverables.
         </div>
       </div>
 
@@ -688,10 +700,9 @@ export async function renderCertificateHtml(data) {
       </div>
 
       <div class="footer-credentials">
-        <div>Certificate ID: <strong>${certId}</strong></div>
+        <div>Certificate ID: <strong>${certId}</strong> &bull; Intern ID: <strong>${internId}</strong></div>
         <div>
-          Intern ID: <strong>${internId}</strong> • 
-          Verify at: <a href="https://www.skyrovix.in/verify/${certId}" target="_blank" class="verify-link">www.skyrovix.in/verify/${certId}</a>
+          Verify at: <a href="https://skyrovix.online/verify-certificate?id=${certId}" target="_blank" class="verify-link">skyrovix.online/verify-certificate</a>
           ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" class="qr-badge" />` : ''}
         </div>
         <div>Issued: <strong>${issueDate}</strong></div>

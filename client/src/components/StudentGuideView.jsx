@@ -1088,10 +1088,10 @@ export const StudentGuideView = ({ onOpenApply, isEmbeddedInDashboard = false })
             </p>
 
             <div className="p-4 bg-slate-950 text-emerald-400 font-mono text-xs rounded-2xl border border-slate-800 space-y-1">
-              <p className="text-slate-400"># Example (Vite):</p>
+              <p className="text-slate-400"># Example (Vite & Server):</p>
               <p>VITE_API_URL=https://api.example.com</p>
-              <p>VITE_SUPABASE_URL=https://your-project.supabase.co</p>
-              <p>VITE_SUPABASE_PUBLISHABLE_KEY=your-public-key</p>
+              <p>DB_TYPE=mysql</p>
+              <p>MYSQL_HOST=localhost</p>
             </div>
 
             <ul className="space-y-1 text-xs sm:text-sm text-slate-700 dark:text-slate-300">

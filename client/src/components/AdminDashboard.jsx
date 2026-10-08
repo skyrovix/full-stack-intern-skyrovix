@@ -11,6 +11,7 @@ import {
   Settings, 
   Award, 
   ExternalLink, 
+  CheckCircle,
   CheckCircle2, 
   LogOut, 
   Key,
@@ -817,13 +818,12 @@ export const AdminDashboard = ({ onLogout }) => {
     }
   };
 
-  // Supabase Cloud Synchronisation Handlers
-  const handleTriggerSupabasePush = async () => {
-    if (!window.confirm('Force-push all local SQLite records (students, payments, certificates, offer letters, system settings) to Supabase Cloud?')) return;
+  // SQL Database Management Handlers (Contabo VPS Native)
+  const handleTriggerDbBackup = async () => {
     setCloudSyncLoading(true);
 
     try {
-      const res = await fetch('/api/admin/sync/supabase-push', {
+      const res = await fetch('/api/admin/db/backup', {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -832,23 +832,23 @@ export const AdminDashboard = ({ onLogout }) => {
 
       if (res.ok) {
         setCloudSyncStats(data.synced);
-        showToast(`Cloud Sync Complete: Synced ${data.synced?.students || 0} students, ${data.synced?.registrations || 0} registrations, and records to Supabase.`);
+        showToast(data.message || `SQL Database integrity verified: ${data.synced?.students || 0} students and ${data.synced?.registrations || 0} records active.`);
         fetchAllAdminData();
       } else {
-        showToast(data.error || 'Supabase push failed');
+        showToast(data.error || 'SQL Database verification failed');
       }
     } catch (err) {
       setCloudSyncLoading(false);
-      showToast('Network error during Supabase sync');
+      showToast('Network error during SQL database verification');
     }
   };
 
-  const handleTriggerSupabasePull = async () => {
-    if (!window.confirm('Pull latest student records from Supabase Cloud into local database? Existing matching records will be preserved.')) return;
+  const handleTriggerDbVacuum = async () => {
+    if (!window.confirm('Run database maintenance (VACUUM & optimization) on Contabo VPS? This reclaims disk space and defragments tables.')) return;
     setCloudSyncLoading(true);
 
     try {
-      const res = await fetch('/api/admin/sync/supabase-pull', {
+      const res = await fetch('/api/admin/db/vacuum', {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -856,14 +856,14 @@ export const AdminDashboard = ({ onLogout }) => {
       setCloudSyncLoading(false);
 
       if (res.ok) {
-        showToast(`Cloud Pull Complete: Loaded ${data.pulled?.students || 0} students and ${data.pulled?.registrations || 0} registrations.`);
+        showToast(data.message || 'SQL Database optimized successfully!');
         fetchAllAdminData();
       } else {
-        showToast(data.error || 'Supabase pull failed');
+        showToast(data.error || 'Database optimization failed');
       }
     } catch (err) {
       setCloudSyncLoading(false);
-      showToast('Network error pulling from Supabase');
+      showToast('Network error optimizing database');
     }
   };
 
@@ -1198,22 +1198,22 @@ export const AdminDashboard = ({ onLogout }) => {
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>PG: LIVE PROD</span>
               </span>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-50 text-sky-700 border border-sky-200">
-                <Cloud className="w-3 h-3 text-sky-500" />
-                <span>SUPABASE READY</span>
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                <Database className="w-3 h-3 text-emerald-600" />
+                <span>SQL DATABASE ACTIVE</span>
               </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={handleTriggerSupabasePush}
+              onClick={handleTriggerDbBackup}
               disabled={cloudSyncLoading}
-              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold transition disabled:opacity-50"
-              title="Force push local database to Supabase Cloud"
+              className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold transition disabled:opacity-50"
+              title="Verify SQL Database Records"
             >
-              <UploadCloud className={`w-3.5 h-3.5 ${cloudSyncLoading ? 'animate-bounce' : ''}`} />
-              <span>{cloudSyncLoading ? 'Syncing...' : 'Sync Cloud'}</span>
+              <CheckCircle className={`w-3.5 h-3.5 ${cloudSyncLoading ? 'animate-spin' : ''}`} />
+              <span>{cloudSyncLoading ? 'Verifying...' : 'Verify SQL DB'}</span>
             </button>
 
             <button
@@ -1256,7 +1256,7 @@ export const AdminDashboard = ({ onLogout }) => {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-extrabold text-slate-900">Platform Command Center</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Real-time statistics synchronized with SQLite production database &amp; Supabase Cloud</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Real-time statistics synchronized with native SQL production database on Contabo VPS</p>
                 </div>
 
                 {/* Health strip */}
@@ -1267,9 +1267,9 @@ export const AdminDashboard = ({ onLogout }) => {
                     <span className="font-extrabold text-emerald-700">Active</span>
                   </div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50">
-                    <Database className="w-3.5 h-3.5 text-sky-600" />
-                    <span className="font-bold text-slate-700">Cloud Sync:</span>
-                    <span className="font-extrabold text-sky-700">Supabase</span>
+                    <Database className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="font-bold text-slate-700">Database:</span>
+                    <span className="font-extrabold text-emerald-700">SQL Native (VPS)</span>
                   </div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-50">
                     <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
@@ -1369,27 +1369,27 @@ export const AdminDashboard = ({ onLogout }) => {
                   </button>
 
                   <button
-                    onClick={handleTriggerSupabasePush}
+                    onClick={handleTriggerDbBackup}
                     disabled={cloudSyncLoading}
-                    className="p-3.5 bg-slate-800/90 hover:bg-sky-600/30 border border-slate-700 hover:border-sky-500/50 rounded-2xl text-left transition group disabled:opacity-50"
+                    className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group disabled:opacity-50"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <UploadCloud className={`w-4 h-4 ${cloudSyncLoading ? 'animate-bounce' : ''}`} />
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                      <Database className={`w-4 h-4 ${cloudSyncLoading ? 'animate-pulse' : ''}`} />
                     </div>
-                    <div className="font-bold text-xs text-white">Cloud Push</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Sync to Supabase</div>
+                    <div className="font-bold text-xs text-white">Verify SQL</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Inspect Records</div>
                   </button>
 
                   <button
-                    onClick={handleTriggerSupabasePull}
+                    onClick={handleTriggerDbVacuum}
                     disabled={cloudSyncLoading}
                     className="p-3.5 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/50 rounded-2xl text-left transition group disabled:opacity-50"
                   >
                     <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <DownloadCloud className="w-4 h-4" />
+                      <RefreshCw className={`w-4 h-4 ${cloudSyncLoading ? 'animate-spin' : ''}`} />
                     </div>
-                    <div className="font-bold text-xs text-white">Cloud Pull</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Fetch Cloud State</div>
+                    <div className="font-bold text-xs text-white">Optimize DB</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">Vacuum &amp; Defrag</div>
                   </button>
 
                   <button
@@ -2744,44 +2744,44 @@ export const AdminDashboard = ({ onLogout }) => {
                   </form>
                 </div>
 
-                {/* 2. Cloud Database Operations & Disaster Recovery */}
+                {/* 2. Contabo VPS SQL Database Management & Disaster Recovery */}
                 <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200/80 shadow-xs space-y-5">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <div className="flex items-center gap-2">
-                      <Database className="w-5 h-5 text-purple-600" />
-                      <h3 className="text-base font-bold text-slate-900">Cloud Sync &amp; Disaster Recovery</h3>
+                      <Database className="w-5 h-5 text-emerald-600" />
+                      <h3 className="text-base font-bold text-slate-900">Contabo VPS Dedicated SQL Database</h3>
                     </div>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      Supabase Ready
+                      SQL Native (VPS)
                     </span>
                   </div>
 
                   <p className="text-xs text-slate-500">
-                    Dual-persistence system mirrors local SQLite state to cloud Supabase PostgreSQL in real-time. Manual force-sync controls are available below:
+                    Production SQL database running natively on your Contabo VPS disk. Zero external cloud latency, full ACID compliance, and permanent on-server data persistence:
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
-                      onClick={handleTriggerSupabasePush}
+                      onClick={handleTriggerDbBackup}
                       disabled={cloudSyncLoading}
-                      className="p-3.5 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition disabled:opacity-50 text-left"
+                      className="p-3.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition disabled:opacity-50 text-left"
                     >
-                      <UploadCloud className="w-5 h-5 text-sky-600 shrink-0" />
+                      <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0" />
                       <div>
-                        <div className="font-extrabold">Push to Cloud</div>
-                        <div className="text-[10px] font-normal text-sky-600">Sync all SQLite to Supabase</div>
+                        <div className="font-extrabold">Verify Database</div>
+                        <div className="text-[10px] font-normal text-emerald-600">Check table counts &amp; disk integrity</div>
                       </div>
                     </button>
 
                     <button
-                      onClick={handleTriggerSupabasePull}
+                      onClick={handleTriggerDbVacuum}
                       disabled={cloudSyncLoading}
                       className="p-3.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 font-bold rounded-2xl text-xs flex items-center gap-3 transition disabled:opacity-50 text-left"
                     >
-                      <DownloadCloud className="w-5 h-5 text-indigo-600 shrink-0" />
+                      <RefreshCw className="w-5 h-5 text-indigo-600 shrink-0" />
                       <div>
-                        <div className="font-extrabold">Pull from Cloud</div>
-                        <div className="text-[10px] font-normal text-indigo-600">Restore cloud records</div>
+                        <div className="font-extrabold">Optimize Database</div>
+                        <div className="text-[10px] font-normal text-indigo-600">Execute VACUUM &amp; defrag</div>
                       </div>
                     </button>
 
@@ -2810,7 +2810,7 @@ export const AdminDashboard = ({ onLogout }) => {
 
                   {cloudSyncStats && (
                     <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[11px] font-mono text-slate-600">
-                      Synced {cloudSyncStats.students || 0} students, {cloudSyncStats.registrations || 0} applications, {cloudSyncStats.offer_letters || 0} offer letters to Supabase.
+                      Verified {cloudSyncStats.students || 0} students, {cloudSyncStats.registrations || 0} applications, {cloudSyncStats.offer_letters || 0} offer letters on VPS disk.
                     </div>
                   )}
                 </div>
@@ -3603,7 +3603,7 @@ export const AdminDashboard = ({ onLogout }) => {
                   <li>Marks student and application status as <strong>PAID &amp; CONFIRMED</strong></li>
                   <li>Generates official <strong>Offer Letter</strong> with verification code if not yet issued</li>
                   <li>Unlocks student dashboard to Step 2 (Offer Letter) and Step 3 (Internship)</li>
-                  <li>Syncs change directly to Supabase Cloud &amp; records immutable audit log</li>
+                  <li>Applies change directly to SQL database &amp; records immutable audit log</li>
                 </ul>
               </div>
 

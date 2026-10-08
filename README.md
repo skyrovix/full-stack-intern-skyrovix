@@ -19,7 +19,7 @@ The **Skyrovix Batch 1 Platform** is a full-featured, production-ready web appli
 
 - **Frontend**: React 18, Vite, Tailwind CSS, Lucide Icons, Canvas Confetti.
 - **Backend**: Node.js, Express, Cashfree PG SDK v3, JWT, Bcrypt.
-- **Database**: SQLite (Local fast embedded persistence) with optional Supabase cloud synchronization.
+- **Database**: Dedicated MySQL (Production on Contabo VPS / Linux VPS) with local SQLite fallback for offline development.
 - **Deployment**: Vite build client bundle + Express API server.
 
 ---
@@ -51,6 +51,23 @@ Fill in your credentials:
 - `CASHFREE_ENVIRONMENT` (`production` or `sandbox`)
 - `JWT_SECRET`
 - `ADMIN_SECRET`
+
+#### For Contabo VPS (MySQL Production Database):
+Set your MySQL credentials in `server/.env`:
+```env
+DB_TYPE=mysql
+MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=your_mysql_password
+MYSQL_DATABASE=skyrovix
+```
+Import the production schema:
+```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS skyrovix CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p skyrovix < server/mysql_schema.sql
+```
+*(Note: If MySQL is not configured or offline during local development, the server automatically uses the built-in SQLite engine, requiring zero setup!)*
 
 ### 4. Run Development Servers
 ```bash

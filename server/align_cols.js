@@ -11,7 +11,7 @@ const db = new sqlite3.Database(dbPath);
 const dbRun = (sql) => new Promise((resolve) => db.run(sql, () => resolve()));
 
 async function alignColumns() {
-  console.log('Aligning SQLite columns with Supabase schema...');
+  console.log('Aligning database columns with production schema...');
   await dbRun('ALTER TABLE students ADD COLUMN avatar_url TEXT');
   await dbRun("ALTER TABLE registrations ADD COLUMN domain TEXT DEFAULT 'Full Stack Development'");
   await dbRun('ALTER TABLE payments ADD COLUMN cf_payment_id TEXT');

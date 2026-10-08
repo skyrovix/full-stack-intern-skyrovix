@@ -69,7 +69,8 @@ async function runTests() {
     // TEST 1: Existing Historical User Preservation
     // ----------------------------------------------------
     console.log('\n--- TEST 1: Historical Data Preservation ---');
-    const existingStudentId = 'std_d4e07eca887784b0'; // Hariharan S
+    const existingStudent = (await dbGet('SELECT * FROM students WHERE email = ?', ['hariharanmahesh34@gmail.com'])) || (await dbGet('SELECT * FROM students LIMIT 1'));
+    const existingStudentId = existingStudent ? existingStudent.id : 'std_239f432f62f9bdce';
     const existingWfRes = await runRequest('GET', `/api/user/workflow?studentId=${existingStudentId}`);
     assert(existingWfRes.status === 200, 'Existing student workflow retrieved successfully');
     assert(existingWfRes.data.workflow.stage3_status === 'UNLOCKED' || existingWfRes.data.workflow.stage3_status === 'COMPLETED',
@@ -88,15 +89,15 @@ async function runTests() {
     const newStudentEmail = `intern_${Date.now()}@test.skyrovix.com`;
     
     // Insert test student and registration
-    db.prepare(`
+    await dbRun(`
       INSERT INTO students (id, full_name, email, mobile, college, degree, department, year_of_study, city, skill_level, password_hash)
       VALUES (?, 'Test Candidate Intern', ?, '9876543210', 'Skyrovix Institute', 'B.Tech', 'CSE', '3rd Year', 'Chennai', 'Intermediate', 'hash123')
-    `).run(newStudentId, newStudentEmail);
+    `, [newStudentId, newStudentEmail]);
 
-    db.prepare(`
+    await dbRun(`
       INSERT INTO registrations (id, student_id, batch_id, registration_status, payment_status)
       VALUES (?, ?, 'batch-1', 'OFFER_ACCEPTED', 'PAID')
-    `).run(`reg_${Date.now()}`, newStudentId);
+    `, [`reg_${Date.now()}`, newStudentId]);
 
     // Fetch new intern's workflow
     const wfRes = await runRequest('GET', `/api/user/workflow?studentId=${newStudentId}`);

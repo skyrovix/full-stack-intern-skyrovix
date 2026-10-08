@@ -22,6 +22,9 @@ import sealImg from '../assets/seal.jpg';
 import hariSig from '../assets/hari sig.jpeg';
 import maheshSig from '../assets/mahesh sig.jpeg';
 import msmeLogo from '../assets/msme.png';
+import vinixImg from '../assets/vinix.png';
+import yrTechImg from '../assets/yr-tech logo.png';
+import { handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
 
 export const CertificateView = ({ certId: initialCertId, onBack }) => {
   const [certId, setCertId] = useState(initialCertId || '');
@@ -252,13 +255,23 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>View Document</span>
                 </a>
-                <a
-                  href={`/api/documents/certificate/${certData.id}/download`}
-                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition"
+                <button
+                  onClick={() => {
+                    handleDownloadCertificate({
+                      fullName: certData.student_name,
+                      internId: certData.intern_id,
+                      domain: certData.domain,
+                      certId: certData.certificate_id || certData.id,
+                      issuedAt: certData.issue_date,
+                      verifyUrl: certData.verify_url || `https://skyrovix.online/verify-certificate?id=${certData.certificate_id || certData.id}`,
+                      qrCodeDataUri: qrDataUrl
+                    });
+                  }}
+                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Download File</span>
-                </a>
+                  <span>Download PDF</span>
+                </button>
                 <button
                   onClick={() => window.print()}
                   className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition"
@@ -290,7 +303,7 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
             </div>
 
             {/* ========================================================
-                PIXEL-PERFECT CERTIFICATE FRAME (MATCHING IMAGE 2 EXACTLY)
+                PIXEL-PERFECT CERTIFICATE FRAME (MATCHING NEW TEMPLATE)
             ======================================================== */}
             <div className="overflow-x-auto pb-4">
               <div 
@@ -302,77 +315,74 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
                   boxSizing: 'border-box'
                 }}
               >
-                {/* Outer Navy Border (Image 2 style) */}
+                {/* Outer Navy Border */}
                 <div 
                   className="w-full h-full relative p-8 flex flex-col justify-between"
                   style={{
-                    border: '6px solid #0f2b48',
-                    outline: '1.5px solid #0f2b48',
+                    border: '6px solid #07284a',
+                    outline: '1px solid #e2e8f0',
                     outlineOffset: '-12px',
                     minHeight: '668px',
                     backgroundColor: '#ffffff'
                   }}
                 >
-                  {/* Top Bar: Left Logo, Center Title, Right MSME */}
+                  {/* Top Bar: Left (Logo + Vinix), Center (Skyrovix), Right (YR-Tech + MSME) */}
                   <div className="flex items-center justify-between pt-2 px-2">
-                    {/* Top Left Logo Badge */}
-                    <div className="w-24 h-16 flex items-center justify-start">
-                      <img src={navLogo} alt="Skyrovix Logo" className="h-12 w-auto object-contain" />
+                    <div className="flex items-center gap-3">
+                      <img src={navLogo} alt="Skyrovix Logo" className="h-11 w-auto object-contain" />
+                      <img src={vinixImg} alt="Vinix Partner" className="h-8 w-auto object-contain" />
                     </div>
 
-                    {/* Top Center Branding */}
                     <div className="text-center space-y-0.5">
                       <h3 
-                        className="text-2xl font-black tracking-[0.2em] text-[#0f2b48]"
+                        className="text-2xl font-black tracking-[0.25em] text-[#07284a]"
                         style={{ fontFamily: "'Montserrat', 'Inter', sans-serif" }}
                       >
                         SKYROVIX
                       </h3>
-                      <p className="text-xs font-semibold text-slate-600 tracking-wider">
+                      <p className="text-xs font-semibold text-slate-500 tracking-wider">
                         Empowering Future Innovators
                       </p>
                     </div>
 
-                    {/* Top Right MSME Emblem */}
-                    <div className="w-24 h-16 flex items-center justify-end">
-                      <img src={msmeLogo} alt="MSME Emblem" className="h-12 w-auto object-contain" />
+                    <div className="flex items-center gap-3">
+                      <img src={yrTechImg} alt="YR Tech Partner" className="h-8 w-auto object-contain" />
+                      <img src={msmeLogo} alt="MSME Emblem" className="h-9 w-auto object-contain" />
                     </div>
                   </div>
 
                   {/* Main Title Section */}
                   <div className="text-center py-4 space-y-1">
                     <h1 
-                      className="text-4xl font-extrabold tracking-[0.25em] text-[#0f2b48]"
+                      className="text-4xl font-extrabold tracking-[0.2em] text-[#07284a]"
                       style={{ fontFamily: "'Montserrat', 'Inter', sans-serif" }}
                     >
                       CERTIFICATE
                     </h1>
-                    <div className="text-sm font-semibold tracking-[0.35em] text-slate-500 uppercase">
+                    <div className="text-xs font-bold tracking-[0.35em] text-slate-500 uppercase">
                       OF INTERNSHIP COMPLETION
                     </div>
                   </div>
 
                   {/* Presentation Text & Recipient */}
-                  <div className="text-center space-y-4 px-12">
-                    <p className="text-xs text-slate-600 font-medium tracking-wide">
+                  <div className="text-center space-y-3 px-12">
+                    <p className="text-xs text-slate-500 font-medium">
                       This certificate is proudly presented to
                     </p>
 
-                    {/* Student Name */}
                     <div className="py-1">
                       <h2 
-                        className="text-4xl font-black text-slate-950 tracking-tight"
+                        className="text-3xl font-black text-[#07284a] underline decoration-[#0284c7] underline-offset-8"
                         style={{ fontFamily: "'Montserrat', 'Inter', sans-serif" }}
                       >
                         {certData.student_name}
                       </h2>
                     </div>
 
-                    {/* Program Paragraph */}
-                    <p className="text-xs text-slate-700 max-w-2xl mx-auto leading-relaxed font-normal">
-                      for successfully completing the task-based virtual internship program in{' '}
-                      <strong className="font-extrabold text-slate-900">{certData.domain}</strong>{' '}
-                      at Skyrovix IT Solutions, demonstrating dedication, technical skill, and professional excellence throughout the program.
+                    <p className="text-xs text-slate-600 max-w-2xl mx-auto leading-relaxed">
+                      for successfully completing the rigorous task-based virtual internship in{' '}
+                      <strong className="font-extrabold text-[#07284a]">{certData.domain}</strong>{' '}
+                      at Skyrovix, demonstrating consistent technical competence, problem-solving skills, and dedication to industry-standard deliverables.
                     </p>
                   </div>
 

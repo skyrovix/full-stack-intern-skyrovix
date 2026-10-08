@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { initDb, dbGet, dbAll, dbRun, getOrCreateInternWorkflow } from './db.js';
 import { renderOfferLetterHtml, renderCertificateHtml, generateVerificationQr } from './documentTemplates.js';
 import { sendOfferLetterEmail, sendCertificateEmail, logEmailEvent, getEmailLogsForReference } from './emailService.js';
