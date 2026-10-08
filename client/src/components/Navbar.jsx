@@ -3,12 +3,13 @@ import { Menu, X, ArrowRight, MessageCircle, LogIn, ShieldCheck, Sparkles } from
 import navLogo from '../assets/top nav bar logo.png';
 import { WhatsAppIcon } from './BrandIcons';
 
-export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, whatsappUrl }) => {
+export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onOpenCertificate, whatsappUrl }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
     { label: 'Overview', href: '#overview' },
     { label: 'Student Guide', href: '/guide' },
+    { label: 'Certificate', href: '/certificate' },
     { label: 'Curriculum', href: '#curriculum' },
     { label: 'Roadmap', href: '#roadmap' },
     { label: 'Deployment', href: '#deployment' },
@@ -20,6 +21,19 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, wha
   const handleNavClick = (e, href) => {
     e.preventDefault();
     setMobileMenuOpen(false);
+    if (href === '/certificate' || href === '#certificate' || href === '/verify') {
+      if (onOpenCertificate) {
+        onOpenCertificate();
+      } else {
+        try {
+          window.history.pushState({}, '', '/certificate');
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        } catch (err) {
+          window.location.href = '/certificate';
+        }
+      }
+      return;
+    }
     if (href === '/guide' || href === '#guide') {
       if (onOpenGuide) {
         onOpenGuide();

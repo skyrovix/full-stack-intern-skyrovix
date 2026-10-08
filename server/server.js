@@ -518,16 +518,8 @@ app.post('/api/payments/verify', async (req, res) => {
       // Initialize 3-Stage Internship Workflow (Stage 1: PENDING, Stage 2: LOCKED, Stage 3: LOCKED)
       await getOrCreateInternWorkflow(student.id);
 
-      // Ensure student has their active offer letter generated
-      const existingOL = await dbGet(`SELECT id FROM offer_letters WHERE student_id = ?`, [student.id]);
-      if (!existingOL) {
-        const code = `SKX-OL-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
-        const olId = `OL-SKX-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
-        await dbRun(`
-          INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
-          VALUES (?, ?, ?, '3-Month Full Stack Development Internship', ?, 'Batch 1', '1 Month', '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
-        `, [olId, student.id, student.full_name, 'Full Stack Development', code]);
-      }
+      // Automatically issue offer letter and dispatch via Gmail SMTP to student's email
+      await autoIssueOfferLetterAndEmail(student.id, req);
 
       // Audit event
       await dbRun(
@@ -639,6 +631,10 @@ app.post('/api/payments/cashfree/webhook', async (req, res) => {
           `UPDATE registrations SET payment_status = 'PAID', registration_status = 'CONFIRMED', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
           [payment.registration_id]
         );
+        if (payment.student_id) {
+          await getOrCreateInternWorkflow(payment.student_id);
+          await autoIssueOfferLetterAndEmail(payment.student_id, req);
+        }
         console.log(`✅ Webhook confirmed payment & registration for Order: ${orderId}`);
       }
     }
@@ -828,6 +824,239 @@ export async function checkCertificateEligibility(studentId) {
     already_certified: Boolean(existingCert),
     existing_certificate: existingCert || null
   };
+}
+
+/**
+ * Automatically generates (if missing) and emails the Official Internship Offer Letter
+ * to candidate's Gmail via Gmail SMTP when user registers & completes payment.
+ */
+export async function autoIssueOfferLetterAndEmail(studentId, req = null) {
+  try {
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [studentId]);
+    if (!student || !student.email) {
+      console.warn(`[Auto Offer Letter] Student account or email not found for id: ${studentId}`);
+      return { success: false, error: 'Student account or email not found' };
+    }
+
+    const registration = await dbGet('SELECT * FROM registrations WHERE student_id = ?', [studentId]);
+    const studentIdFormatted = student.student_id_formatted || `SKX-2026-${String(student.id).slice(-4)}`;
+
+    // Ensure registration has internship_id
+    let internshipId = registration?.internship_id;
+    if (!internshipId) {
+      internshipId = `SKX-INT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      if (registration?.id) {
+        await dbRun('UPDATE registrations SET internship_id = ?, internship_status = "ACTIVE" WHERE id = ?', [internshipId, registration.id]);
+      }
+    }
+
+    const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const domain = registration?.domain || 'Full Stack Development';
+    const duration = registration?.duration || '1 Month';
+    const endDate = registration?.end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    let existingOL = await dbGet('SELECT * FROM offer_letters WHERE student_id = ?', [studentId]);
+    let olId, olCode, pdfUrl;
+
+    if (!existingOL) {
+      olId = `OL-SKX-${Date.now().toString().slice(-4)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+      olCode = `SKX-OL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      pdfUrl = `/api/documents/offer-letter/${olId}/view`;
+
+      await dbRun(`
+        INSERT INTO offer_letters (
+          id, offer_letter_id, student_id, internship_id, student_name,
+          program, domain, role, duration, start_date, end_date, mode,
+          issue_date, status, verification_code, terms, pdf_url, email_status
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
+      `, [
+        olId, olCode, student.id, internshipId, student.full_name,
+        '3-Month Full Stack Development Internship', domain, duration,
+        todayDate, endDate, todayDate, olCode, pdfUrl
+      ]);
+
+      existingOL = await dbGet('SELECT * FROM offer_letters WHERE id = ?', [olId]);
+    } else {
+      olId = existingOL.id;
+      olCode = existingOL.verification_code || existingOL.offer_letter_id || existingOL.id;
+      pdfUrl = existingOL.pdf_url || `/api/documents/offer-letter/${olId}/view`;
+    }
+
+    // Determine host for document view link
+    let host = req ? req.get?.('host') : 'localhost:5000';
+    let protocol = req ? (req.protocol || 'http') : 'http';
+    const docUrl = `${protocol}://${host}${pdfUrl}`;
+
+    console.log(`🚀 [Auto Offer Letter] Dispatching offer letter ${olCode} to ${student.email}...`);
+
+    const emailRes = await sendOfferLetterEmail({
+      to: student.email,
+      student_name: student.full_name,
+      offer_letter_id: olCode,
+      intern_id: studentIdFormatted,
+      domain: existingOL.domain || domain,
+      duration: existingOL.duration || duration,
+      start_date: existingOL.start_date || todayDate,
+      end_date: existingOL.end_date || endDate,
+      document_url: docUrl
+    });
+
+    if (emailRes && emailRes.success) {
+      await dbRun('UPDATE offer_letters SET email_status = "SENT", email_sent_at = CURRENT_TIMESTAMP WHERE id = ?', [olId]);
+      await logEmailEvent(student.id, 'OFFER_LETTER', student.email, olCode, 'SENT', emailRes.messageId || null);
+    } else {
+      await dbRun('UPDATE offer_letters SET email_status = "FAILED" WHERE id = ?', [olId]);
+      await logEmailEvent(student.id, 'OFFER_LETTER', student.email, olCode, 'FAILED', null, emailRes?.error || 'Send failed');
+    }
+
+    // In-app student notification
+    const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    await dbRun(`
+      INSERT INTO user_notifications (id, user_id, title, message, type)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      notifId,
+      student.id,
+      'Official Offer Letter Issued & Emailed!',
+      `Your official Offer Letter (${olCode}) has been issued and emailed to ${student.email}.`,
+      'offer_letter'
+    ]);
+
+    return {
+      success: true,
+      offer_letter: existingOL,
+      email_sent: Boolean(emailRes && emailRes.success),
+      email_result: emailRes
+    };
+  } catch (err) {
+    console.error('❌ Error in autoIssueOfferLetterAndEmail:', err);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Automatically generates (if missing) and emails the Official Certificate of Completion
+ * to candidate's Gmail via Gmail SMTP when user completes all tasks and admin approves.
+ */
+export async function autoIssueCertificateAndEmail(studentId, req = null, options = {}) {
+  try {
+    const student = await dbGet('SELECT * FROM students WHERE id = ?', [studentId]);
+    if (!student || !student.email) {
+      console.warn(`[Auto Certificate] Student account or email not found for id: ${studentId}`);
+      return { success: false, error: 'Student account or email not found' };
+    }
+
+    const registration = await dbGet('SELECT * FROM registrations WHERE student_id = ?', [studentId]);
+
+    // Check if certificate already exists
+    let existingCert = await dbGet('SELECT * FROM certificates WHERE student_id = ?', [studentId]);
+
+    const certId = existingCert ? existingCert.id : `SKX-CERT-2026-${Math.floor(10000 + Math.random() * 90000)}`;
+    const internId = student.student_id_formatted || registration?.internship_id || `SKX-2026-${String(student.id).slice(-4)}`;
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const domain = options.domain || registration?.domain || 'Full Stack Development';
+    const program = options.program || '3-Month Full Stack Development Internship';
+    const batch = options.batch || 'Batch 1';
+    const duration = options.duration || registration?.duration || '3 Months';
+    const startDate = options.start_date || registration?.start_date || '01 August 2026';
+    const endDate = options.end_date || registration?.end_date || today;
+    const verifyUrl = `https://www.skyrovix.in/verify/${certId}`;
+    const pdfUrl = `/api/documents/certificate/${certId}/view`;
+
+    let qrCodeData = '';
+    try {
+      qrCodeData = await generateVerificationQr(certId);
+    } catch (qrErr) {
+      console.warn('QR code warning:', qrErr.message);
+    }
+
+    if (existingCert) {
+      await dbRun(`
+        UPDATE certificates SET
+          student_name = ?, program = ?, domain = ?, batch = ?, duration = ?, issue_date = ?,
+          start_date = ?, end_date = ?, status = 'ISSUED', certificate_status = 'VALID',
+          qr_code_data = ?, pdf_url = ?, verification_url = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [student.full_name, program, domain, batch, duration, today, startDate, endDate, qrCodeData, pdfUrl, verifyUrl, certId]);
+    } else {
+      await dbRun(`
+        INSERT INTO certificates (
+          id, certificate_id, student_id, internship_id, student_name, program, domain,
+          batch, duration, issue_date, start_date, end_date, status, certificate_status,
+          verification_url, pdf_url, qr_code_data, grade
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ISSUED', 'VALID', ?, ?, ?, 'A+')
+      `, [
+        certId, certId, student.id, internId, student.full_name, program, domain,
+        batch, duration, today, startDate, endDate, verifyUrl, pdfUrl, qrCodeData
+      ]);
+    }
+
+    const cert = await dbGet('SELECT * FROM certificates WHERE id = ?', [certId]);
+
+    // Mark registration and workflow as complete
+    if (registration) {
+      await dbRun('UPDATE registrations SET internship_status = "COMPLETED", updated_at = CURRENT_TIMESTAMP WHERE student_id = ?', [studentId]);
+    }
+    await dbRun(`
+      UPDATE intern_workflows SET 
+        current_stage = 3,
+        stage3_status = 'COMPLETED',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE student_id = ?
+    `, [studentId]);
+
+    // Determine host for document view link
+    let host = req ? req.get?.('host') : 'localhost:5000';
+    let protocol = req ? (req.protocol || 'http') : 'http';
+    const docUrl = `${protocol}://${host}${pdfUrl}`;
+
+    console.log(`🚀 [Auto Certificate] Dispatching Certificate ${certId} email to ${student.email}...`);
+
+    const emailRes = await sendCertificateEmail({
+      to: student.email,
+      student_name: student.full_name,
+      certificate_id: certId,
+      intern_id: internId,
+      domain: cert.domain || domain,
+      duration: cert.duration || duration,
+      issue_date: cert.issue_date || today,
+      verify_url: verifyUrl,
+      document_url: docUrl
+    });
+
+    if (emailRes && emailRes.success) {
+      await dbRun('UPDATE certificates SET email_status = "SENT", email_sent_at = CURRENT_TIMESTAMP WHERE id = ?', [certId]);
+      await logEmailEvent(student.id, 'CERTIFICATE', student.email, certId, 'SENT', emailRes.messageId || null);
+    } else {
+      await dbRun('UPDATE certificates SET email_status = "FAILED" WHERE id = ?', [certId]);
+      await logEmailEvent(student.id, 'CERTIFICATE', student.email, certId, 'FAILED', null, emailRes?.error || 'Send failed');
+    }
+
+    // In-app student notification
+    const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    await dbRun(`
+      INSERT INTO user_notifications (id, user_id, title, message, type)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      notifId,
+      student.id,
+      '🎉 Official Certificate Issued & Emailed!',
+      `Congratulations! Your Certificate of Completion (${certId}) has been issued and emailed to ${student.email}.`,
+      'certificate'
+    ]);
+
+    return {
+      success: true,
+      certificate: cert,
+      email_sent: Boolean(emailRes && emailRes.success),
+      email_result: emailRes
+    };
+  } catch (err) {
+    console.error('❌ Error in autoIssueCertificateAndEmail:', err);
+    return { success: false, error: err.message };
+  }
 }
 
 // Public Certificate Verification (Section 16, 17, 18)
@@ -1295,28 +1524,13 @@ app.post('/api/admin/verify-order/:orderId', authenticateAdmin, async (req, res)
 app.post('/api/admin/students/:id/certificate', authenticateAdmin, async (req, res) => {
   try {
     const studentId = req.params.id;
-    const student = await dbGet(`SELECT * FROM students WHERE id = ?`, [studentId]);
-    if (!student) return res.status(404).json({ error: 'Student not found' });
-
-    const existingCert = await dbGet(`SELECT * FROM certificates WHERE student_id = ?`, [studentId]);
-    if (existingCert) {
-      return res.json({ success: true, certificate: existingCert, message: 'Certificate already issued.' });
+    const certRes = await autoIssueCertificateAndEmail(studentId, req, { override: true });
+    if (!certRes.success) {
+      return res.status(400).json({ error: certRes.error || 'Failed to issue certificate' });
     }
-
-    const certId = `SKY-B1-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-    const verifyUrl = `${process.env.APP_URL || 'http://localhost:5173'}/verify/${certId}`;
-
-    await dbRun(
-      `INSERT INTO certificates (id, student_id, student_name, program, batch, duration, issue_date, status, verification_url)
-       VALUES (?, ?, ?, '3-Month Full Stack Development Internship', 'Batch 1', '3 Months', ?, 'ISSUED', ?)`,
-      [certId, studentId, student.full_name, today, verifyUrl]
-    );
-
-    const newCert = await dbGet(`SELECT * FROM certificates WHERE id = ?`, [certId]);
-    res.status(201).json({ success: true, certificate: newCert });
+    res.status(201).json({ success: true, certificate: certRes.certificate, message: 'Certificate issued and emailed to student successfully.' });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to issue certificate' });
+    res.status(500).json({ error: 'Failed to issue certificate: ' + err.message });
   }
 });
 
@@ -3023,16 +3237,27 @@ app.put('/api/admin/tasks/submissions/:id/review', authenticateAdmin, async (req
       status === 'APPROVED' ? 'success' : 'info'
     ]);
 
-    await recordAuditLog(
-      req.admin.id,
-      req.admin.username,
-      'REVIEW_TASK_SUBMISSION',
-      'SUBMISSION',
-      subId,
-      { student_id: sub.student_id, project_title: sub.project_title, status, grade, feedback }
-    );
+    let autoCertResult = null;
+    if (status === 'APPROVED') {
+      try {
+        const eligibility = await checkCertificateEligibility(sub.student_id);
+        if (eligibility && eligibility.eligible) {
+          console.log(`🎓 [Skyrovix Workflow] Student ${sub.student_id} has all tasks approved! Auto-issuing certificate & emailing via Gmail SMTP...`);
+          autoCertResult = await autoIssueCertificateAndEmail(sub.student_id, req);
+        }
+      } catch (certCheckErr) {
+        console.warn('⚠️ Could not check certificate eligibility on task review:', certCheckErr.message);
+      }
+    }
 
-    res.json({ success: true, message: `Submission updated to ${status}` });
+    res.json({
+      success: true,
+      message: autoCertResult?.success
+        ? `Submission approved! All required tasks completed — Certificate (${autoCertResult.certificate?.id}) automatically issued and emailed to student.`
+        : `Submission updated to ${status}`,
+      certificate_issued: Boolean(autoCertResult?.success),
+      certificate_id: autoCertResult?.certificate?.id || null
+    });
   } catch (e) {
     res.status(500).json({ error: 'Failed to review submission' });
   }
@@ -3129,6 +3354,7 @@ app.post('/api/admin/certificates/generate', authenticateAdmin, async (req, res)
 
     // Mark registration internship status as completed
     await dbRun(`UPDATE registrations SET internship_status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE student_id = ?`, [student.id]);
+    await dbRun(`UPDATE intern_workflows SET current_stage = 3, stage3_status = 'COMPLETED', updated_at = CURRENT_TIMESTAMP WHERE student_id = ?`, [student.id]);
 
     // Section 14, 28: Send certificate email automatically
     let emailSent = false;
@@ -3771,16 +3997,8 @@ app.post('/api/admin/students/:id/manual-payment', authenticateAdmin, async (req
 
     await getOrCreateInternWorkflow(studentId);
 
-    // Auto-issue Offer Letter if none exists
-    const existingOL = await dbGet(`SELECT id FROM offer_letters WHERE student_id = ?`, [studentId]);
-    if (!existingOL) {
-      const olId = `OL-SKX-2026-${studentId.slice(-4).toUpperCase()}`;
-      const code = `SKX-OL-2026-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-      await dbRun(`
-        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
-        VALUES (?, ?, ?, '3-Month Full Stack Development Internship', 'Full Stack Development', 'Batch 1', '1 Month', '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
-      `, [olId, studentId, student.full_name, code]);
-    }
+    // Automatically issue offer letter and email via Gmail SMTP to student's email
+    await autoIssueOfferLetterAndEmail(studentId, req);
 
     await recordAuditLog(req.admin.id, req.admin.username, 'MANUAL_PAYMENT_OVERRIDE', 'STUDENT', studentId, { amount, notes, payment_method });
 
@@ -4420,6 +4638,17 @@ app.post('/api/admin/workflow/training/:submissionId/review', authenticateAdmin,
         sub.student_id,
         { reason: 'All 5 Training & Learning modules approved' }
       );
+
+      // Check if student has already fulfilled capstone project as well and auto-issue certificate
+      try {
+        const eligibility = await checkCertificateEligibility(sub.student_id);
+        if (eligibility && eligibility.eligible) {
+          console.log(`🎓 [Skyrovix Workflow] Student ${sub.student_id} has all modules and capstone complete! Auto-issuing certificate...`);
+          await autoIssueCertificateAndEmail(sub.student_id, req);
+        }
+      } catch (certErr) {
+        console.warn('⚠️ Could not check certificate eligibility on training review:', certErr.message);
+      }
     } else {
       // In-app notification for single module
       await dbRun(`

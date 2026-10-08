@@ -11,7 +11,7 @@ import {
 import footerLogo from '../assets/top nav bar logo.png';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 
-export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin, whatsappUrl }) => {
+export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin, onOpenCertificate, whatsappUrl }) => {
   return (
     <footer className="bg-slate-950 text-white pt-16 pb-12 border-t border-slate-900 text-left">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
@@ -154,6 +154,17 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
               <li>
                 <button onClick={onOpenLogin || onOpenDashboard} className="hover:text-sky-400 transition-colors text-left">
                   User Dashboard Login
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={onOpenCertificate || (() => {
+                    window.history.pushState({}, '', '/certificate');
+                    window.dispatchEvent(new PopStateEvent('popstate'));
+                  })} 
+                  className="hover:text-sky-400 transition-colors text-left"
+                >
+                  Certificate &amp; Verification
                 </button>
               </li>
               <li>

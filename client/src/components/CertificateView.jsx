@@ -26,26 +26,63 @@ import vinixImg from '../assets/vinix.png';
 import yrTechImg from '../assets/yr-tech logo.png';
 import { handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
 
+const SAMPLE_CERT_DATA = {
+  id: 'SKX-CERT-2026-91990',
+  certificate_id: 'SKX-CERT-2026-91990',
+  student_name: 'Vishal R',
+  intern_id: 'SKX-2026-1757',
+  domain: 'Full Stack Development',
+  duration: '3 Months',
+  start_date: '01 August 2026',
+  end_date: '31 October 2026',
+  issue_date: '31 October 2026',
+  status: 'ISSUED',
+  certificate_status: 'VALID',
+  verify_url: 'https://skyrovix.online/verify-certificate?id=SKX-CERT-2026-91990',
+  is_sample: true
+};
+
 export const CertificateView = ({ certId: initialCertId, onBack }) => {
   const [certId, setCertId] = useState(initialCertId || '');
   const [searchInput, setSearchInput] = useState('');
   const [certData, setCertData] = useState(null);
   const [certStatus, setCertStatus] = useState('LOADING'); // 'LOADING' | 'VALID' | 'REVOKED' | 'NOT_FOUND'
+  const [isSamplePreview, setIsSamplePreview] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [qrDataUrl, setQrDataUrl] = useState('');
 
+  const loadSampleCertificate = async () => {
+    setCertStatus('VALID');
+    setCertData(SAMPLE_CERT_DATA);
+    setIsSamplePreview(true);
+    setErrorMessage('');
+    try {
+      const qrUrl = await QRCode.toDataURL(SAMPLE_CERT_DATA.verify_url, {
+        width: 240,
+        margin: 1,
+        color: {
+          dark: '#0f2b48',
+          light: '#ffffff'
+        }
+      });
+      setQrDataUrl(qrUrl);
+    } catch (e) {
+      console.warn('QR error:', e);
+    }
+  };
+
   const fetchCertificate = async (idToFetch) => {
-    if (!idToFetch) {
-      setCertStatus('NOT_FOUND');
-      setErrorMessage('Please provide a Certificate ID to verify.');
+    if (!idToFetch || !idToFetch.trim()) {
+      loadSampleCertificate();
       return;
     }
 
     setCertStatus('LOADING');
     setErrorMessage('');
+    setIsSamplePreview(false);
 
     try {
-      const res = await fetch(`/api/certificates/${encodeURIComponent(idToFetch)}/verify`);
+      const res = await fetch(`/api/certificates/${encodeURIComponent(idToFetch.trim())}/verify`);
       const data = await res.json();
 
       if (res.status === 404 || data.status === 'NOT_FOUND') {
@@ -65,6 +102,7 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
       if (data.verified && data.certificate) {
         setCertStatus('VALID');
         setCertData(data.certificate);
+        setIsSamplePreview(false);
 
         // Generate high-resolution scannable QR Code pointing to verification URL
         const verifyUrl = data.certificate.verify_url || `https://www.skyrovix.in/verify/${data.certificate.certificate_id || idToFetch}`;
@@ -93,12 +131,11 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
   };
 
   useEffect(() => {
-    if (initialCertId) {
+    if (initialCertId && initialCertId.trim()) {
       setCertId(initialCertId);
       fetchCertificate(initialCertId);
     } else {
-      setCertStatus('NOT_FOUND');
-      setErrorMessage('Please enter a Certificate ID to verify.');
+      loadSampleCertificate();
     }
   }, [initialCertId]);
 
@@ -188,6 +225,16 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 max-w-sm mx-auto text-xs text-slate-500 font-mono">
               Searched: <span className="font-bold text-slate-800">{certId || 'None'}</span>
             </div>
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={loadSampleCertificate}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>View Sample Certificate Specimen</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -225,13 +272,20 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
           <div className="space-y-6">
 
             {/* Verification Summary Card */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-emerald-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className={`bg-white rounded-3xl p-6 sm:p-8 border ${isSamplePreview ? 'border-amber-200' : 'border-emerald-200'} shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6`}>
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-extrabold border border-emerald-300">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    ✓ VERIFIED AUTHENTIC CREDENTIAL
-                  </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {isSamplePreview ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 text-amber-900 text-xs font-extrabold border border-amber-300">
+                      <Sparkles className="w-4 h-4 text-amber-600" />
+                      SAMPLE CERTIFICATE SPECIMEN
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-900 text-xs font-extrabold border border-emerald-300">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      ✓ VERIFIED AUTHENTIC CREDENTIAL
+                    </span>
+                  )}
                   <span className="text-xs font-mono text-slate-400">
                     ID: {certData.certificate_id || certData.id}
                   </span>
@@ -240,21 +294,27 @@ export const CertificateView = ({ certId: initialCertId, onBack }) => {
                   {certData.student_name}
                 </h1>
                 <p className="text-xs text-slate-600">
-                  Has fulfilled all required curriculum assignments and capstone requirements in <strong>{certData.domain}</strong>.
+                  {isSamplePreview ? (
+                    'Official specimen certificate preview. Genuine certificates are automatically issued upon completion of all 5 training modules and mentor-approved project deliverables.'
+                  ) : (
+                    <>Has fulfilled all required curriculum assignments and capstone requirements in <strong>{certData.domain}</strong>.</>
+                  )}
                 </p>
               </div>
 
               {/* Action Buttons */}
               <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-                <a
-                  href={`/api/documents/certificate/${certData.id}/view`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>View Document</span>
-                </a>
+                {!isSamplePreview && (
+                  <a
+                    href={`/api/documents/certificate/${certData.id}/view`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 md:flex-none px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>View Document</span>
+                  </a>
+                )}
                 <button
                   onClick={() => {
                     handleDownloadCertificate({

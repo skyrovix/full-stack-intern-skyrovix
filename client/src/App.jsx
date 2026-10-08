@@ -86,8 +86,8 @@ export default function App() {
           status: detectedStatus
         });
         setCurrentView('payment_status');
-      } else if (path.startsWith('/verify/')) {
-        const certId = path.replace('/verify/', '');
+      } else if (path.startsWith('/verify/') || path === '/verify' || path === '/certificate' || path === '/verify-certificate' || params.get('view') === 'certificate') {
+        const certId = path.startsWith('/verify/') ? path.replace('/verify/', '') : (params.get('id') || '');
         setActiveCertId(certId);
         setCurrentView('certificate_view');
       } else if (path.startsWith('/admin')) {
@@ -205,10 +205,10 @@ export default function App() {
   };
 
   // Verify certificate
-  const handleOpenCertificate = (certId) => {
-    setActiveCertId(certId);
+  const handleOpenCertificate = (certId = '') => {
+    setActiveCertId(certId || '');
     try {
-      window.history.pushState({}, '', `/verify/${certId}`);
+      window.history.pushState({}, '', certId ? `/verify/${certId}` : '/certificate');
     } catch (e) {}
     setCurrentView('certificate_view');
   };
@@ -267,6 +267,7 @@ export default function App() {
         onOpenApply={scrollToApply}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenDashboard={() => handleOpenStudentPortal()}
+        onOpenCertificate={() => handleOpenCertificate('')}
         onOpenAdmin={() => {
           try {
             window.history.pushState({}, '', '/admin/dashboard');
@@ -407,6 +408,7 @@ export default function App() {
         onOpenApply={scrollToApply}
         onOpenLogin={() => setIsLoginOpen(true)}
         onOpenDashboard={() => handleOpenStudentPortal()}
+        onOpenCertificate={() => handleOpenCertificate('')}
         onOpenAdmin={() => {
           try {
             window.history.pushState({}, '', '/admin/dashboard');
