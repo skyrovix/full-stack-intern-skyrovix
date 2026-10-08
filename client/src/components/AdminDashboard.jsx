@@ -1089,7 +1089,7 @@ export const AdminDashboard = ({ onLogout }) => {
       )}
 
       <aside className={`
-        fixed lg:sticky top-0 h-screen w-64 bg-slate-900 text-slate-200 border-r border-slate-800 z-50 flex flex-col justify-between transition-transform duration-200 shrink-0
+        fixed inset-y-0 left-0 w-64 h-full bg-slate-900 text-slate-200 border-r border-slate-800 z-40 flex flex-col justify-between transition-transform duration-200 shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Brand Header */}
@@ -1172,7 +1172,7 @@ export const AdminDashboard = ({ onLogout }) => {
       {/* ========================================================
           2. ADMIN MAIN CONTENT AREA
       ======================================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-64 w-full">
         
         {/* Top bar */}
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">

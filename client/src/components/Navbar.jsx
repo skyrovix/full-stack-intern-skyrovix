@@ -244,25 +244,16 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
               <span>JOIN OFFICIAL WHATSAPP GROUP</span>
             </a>
 
-            <div className="flex gap-2 pt-1">
+            <div className="pt-1">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
                   onOpenLogin();
                 }}
-                className="flex-1 py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl text-center transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl text-center transition-colors flex items-center justify-center gap-1.5"
               >
                 <LogIn className="w-3.5 h-3.5 text-sky-600" />
                 <span>Login</span>
-              </button>
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  onOpenAdmin();
-                }}
-                className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-xl text-center hover:bg-slate-100 transition-colors"
-              >
-                Admin Login
               </button>
             </div>
           </div>

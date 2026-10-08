@@ -948,7 +948,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
       )}
 
       <aside className={`
-        fixed lg:sticky top-0 h-screen w-64 bg-white border-r border-slate-200/80 z-50 flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0
+        fixed inset-y-0 left-0 w-64 h-full bg-white border-r border-slate-200/80 z-40 flex flex-col justify-between transition-transform duration-200 ease-in-out shrink-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         
@@ -1030,7 +1030,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
       {/* ========================================================
           2. MAIN CONTENT AREA (TOPBAR + ACTIVE VIEW)
       ======================================================== */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 lg:pl-64 w-full">
         
         {/* Dashboard Top Header */}
         <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
