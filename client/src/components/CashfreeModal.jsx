@@ -154,31 +154,31 @@ export const CashfreeModal = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden text-left antialiased font-sans">
+      <div className="relative w-full max-w-lg rounded-[24px] bg-white shadow-[0_25px_60px_rgba(7,20,38,0.30)] border border-[rgba(25,40,55,0.08)] overflow-hidden text-left antialiased font-sans">
         
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-sky-950 via-slate-900 to-sky-900 text-white">
+        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#071426] via-[#0b1c34] to-[#071426] text-white">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-emerald-500 flex items-center justify-center font-black text-slate-950 text-base shadow">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#18C7E8] to-[#00B978] flex items-center justify-center font-black text-slate-950 text-base shadow">
               ₹
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold tracking-wide">
+                <h3 className="font-heading text-sm font-black tracking-wide text-white">
                   CASHFREE PAYMENTS GATEWAY
                 </h3>
-                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-[#00B978]/20 text-[#00B978] border border-[#00B978]/30">
                   LIVE SECURE
                 </span>
               </div>
-              <p className="text-[11px] text-sky-200/80">
+              <p className="text-[11px] text-slate-300">
                 Official 256-Bit SSL Encrypted Checkout
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
             title="Close Checkout"
           >
             <X className="w-5 h-5" />
@@ -186,27 +186,27 @@ export const CashfreeModal = ({
         </div>
 
         {/* Order Amount Bar */}
-        <div className="p-6 bg-gradient-to-b from-sky-50/80 to-white border-b border-sky-100 flex items-center justify-between">
+        <div className="p-6 bg-gradient-to-b from-[#F7F9FC] to-white border-b border-[rgba(25,40,55,0.08)] flex items-center justify-between">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-sky-800">
+            <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#087FC1]">
               Internship Registration
             </span>
-            <p className="text-sm font-bold text-slate-900">
+            <p className="font-heading text-sm font-bold text-[#192837]">
               Skyrovix Batch 1 Program Fee
             </p>
-            <p className="text-[11px] text-slate-500 font-mono">
-              Order ID: <span className="font-semibold text-sky-700">{currentOrder?.order_id || orderDetails.order_id}</span>
+            <p className="text-[11px] text-[#4C5B6D] font-mono">
+              Order ID: <span className="font-semibold text-[#087FC1]">{currentOrder?.order_id || orderDetails.order_id}</span>
             </p>
           </div>
           <div className="text-right">
-            <span className="text-[11px] font-semibold text-slate-500 block">Total Payable</span>
-            <span className="text-3xl font-black text-slate-900 tracking-tight">₹200.00</span>
+            <span className="text-[11px] font-semibold text-[#4C5B6D] block">Total Payable</span>
+            <span className="font-heading text-3xl font-black text-[#192837] tracking-tight">₹200.00</span>
           </div>
         </div>
 
         {/* Breakdown Guarantee Banner */}
         <div className="px-6 py-2.5 bg-emerald-50 border-b border-emerald-200/80 text-[11px] font-semibold text-emerald-900 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+          <ShieldCheck className="w-4 h-4 text-[#00B978] shrink-0" />
           <span>Internship Tuition: <strong>₹0.00 (100% Free)</strong> • Only ₹200 Registration Fee Applicable.</span>
         </div>
 
@@ -286,7 +286,11 @@ export const CashfreeModal = ({
               type="button"
               onClick={() => handleProceedRealCashfree('_modal', currentOrder)}
               disabled={isProcessing}
-              className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-700 hover:from-emerald-700 hover:to-sky-800 text-white rounded-2xl font-black text-sm sm:text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.99]"
+              className="w-full py-4 px-6 text-white rounded-[20px] font-extrabold text-sm sm:text-base shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 transform active:scale-[0.99] cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #087FC1, #2447B8)',
+                boxShadow: '0 10px 25px rgba(8,127,193,0.30)'
+              }}
             >
               <CreditCard className="w-5 h-5" />
               <span>{isProcessing ? 'Connecting to Cashfree Gateway...' : 'Pay ₹200 Via Cashfree Gateway Now'}</span>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   UserPlus, 
   CreditCard, 
@@ -40,6 +41,8 @@ export const RegistrationForm = ({
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [existingConfirmedMsg, setExistingConfirmedMsg] = useState(null);
+  const shouldReduceMotion = useReducedMotion();
+  const easeOutQuart = [0.16, 1, 0.3, 1];
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -129,30 +132,36 @@ export const RegistrationForm = ({
   };
 
   return (
-    <section id="register" className="py-20 bg-white border-t border-slate-200">
+    <section id="register" className="py-20 md:py-24 bg-white border-t border-[rgba(25,40,55,0.08)]">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Section Heading */}
-        <div className="text-center max-w-2xl mx-auto mb-10 space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-100 text-sky-800 text-xs font-bold uppercase tracking-wider border border-sky-200">
-            <UserPlus className="w-3.5 h-3.5 text-sky-600" />
+        <motion.div 
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.6, ease: easeOutQuart }}
+          className="text-center max-w-2xl mx-auto mb-10 space-y-3"
+        >
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#087FC1]/10 text-[#087FC1] text-xs font-bold uppercase tracking-wider border border-[#087FC1]/20">
+            <UserPlus className="w-3.5 h-3.5 text-[#087FC1]" />
             <span>OFFICIAL APPLICATION FORM</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="font-heading text-3xl sm:text-4xl font-black text-[#192837] tracking-tight">
             Register for Skyrovix Batch 1
           </h2>
-          <p className="text-slate-600 text-sm sm:text-base">
+          <p className="text-[#4C5B6D] text-sm sm:text-base leading-relaxed">
             Fill in your academic details, confirm your ₹200 registration fee, and secure your place in the upcoming 3-month full-stack internship.
           </p>
-        </div>
+        </motion.div>
 
         {/* Existing Confirmed Alert Box */}
         {existingConfirmedMsg && (
-          <div className="mb-8 p-6 rounded-2xl bg-emerald-50 border-2 border-emerald-400 text-left space-y-4 animate-in fade-in duration-200">
+          <div className="mb-8 p-6 rounded-[20px] bg-emerald-50 border-2 border-[#00B978] text-left space-y-4 animate-in fade-in duration-200">
             <div className="flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+              <CheckCircle2 className="w-6 h-6 text-[#00B978]" />
               <div>
-                <h4 className="text-base font-extrabold text-emerald-900">
+                <h4 className="font-heading text-base font-extrabold text-emerald-950">
                   You are already enrolled &amp; confirmed for Batch 1!
                 </h4>
                 <p className="text-xs text-emerald-700">
@@ -184,21 +193,27 @@ export const RegistrationForm = ({
         )}
 
         {/* Form Container */}
-        <div className="bg-slate-50 p-6 sm:p-10 rounded-3xl border border-slate-200/90 shadow-soft text-left">
+        <motion.div 
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 28, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.65, ease: easeOutQuart }}
+          className="bg-[#F7F9FC] p-6 sm:p-10 rounded-[24px] border border-[rgba(25,40,55,0.08)] shadow-[0_15px_45px_rgba(25,40,55,0.05)] text-left"
+        >
           
           {/* Price Summary Header */}
-          <div className="p-4 mb-8 rounded-2xl bg-white border border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-4 sm:p-5 mb-8 rounded-[18px] bg-white border border-[rgba(25,40,55,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+              <span className="text-xs font-bold uppercase tracking-wider text-[#4C5B6D]/70 block">
                 Internship Program
               </span>
-              <h3 className="text-base font-extrabold text-slate-900">
+              <h3 className="font-heading text-base font-bold text-[#192837]">
                 Skyrovix Batch 1 – {formData.duration || '3 Months'} Full Stack Development ({formData.duration === '6 Months' ? '50 Tasks' : '25 Tasks'})
               </h3>
             </div>
             <div className="text-left sm:text-right">
-              <span className="text-xs font-semibold text-emerald-700 block">₹0 Internship Fee</span>
-              <span className="text-xl font-black text-slate-900">₹200 Registration Fee Only</span>
+              <span className="text-xs font-semibold text-[#00B978] block">₹0 Internship Fee</span>
+              <span className="font-heading text-lg sm:text-xl font-black text-[#192837]">₹200 Registration Fee Only</span>
             </div>
           </div>
 
@@ -538,7 +553,11 @@ export const RegistrationForm = ({
                 type="submit"
                 disabled={loading}
                 id="submit-registration-btn"
-                className="w-full py-4 px-6 bg-gradient-to-r from-sky-600 via-sky-700 to-blue-800 hover:from-sky-700 hover:to-blue-900 text-white rounded-xl font-extrabold text-base shadow-lg shadow-sky-700/25 transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5 disabled:opacity-75 disabled:pointer-events-none"
+                className="w-full py-4 px-6 text-white rounded-[20px] font-extrabold text-base shadow-lg transition-all flex items-center justify-center gap-2 transform hover:-translate-y-0.5 disabled:opacity-75 disabled:pointer-events-none cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #087FC1, #2447B8)',
+                  boxShadow: '0 12px 30px rgba(8,127,193,0.30)'
+                }}
               >
                 {loading ? (
                   <span>Processing Application...</span>
@@ -551,14 +570,14 @@ export const RegistrationForm = ({
               </button>
             </div>
 
-            <p className="text-[11px] text-center text-slate-500 flex items-center justify-center gap-1.5">
+            <p className="text-[11px] text-center text-[#4C5B6D] flex items-center justify-center gap-1.5 font-medium">
               <Lock className="w-3.5 h-3.5 text-slate-400" />
               <span>Payments processed securely via Cashfree Payments Gateway</span>
             </p>
 
           </form>
 
-        </div>
+        </motion.div>
 
       </div>
     </section>

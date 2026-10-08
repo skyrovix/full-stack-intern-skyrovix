@@ -78,12 +78,12 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 text-left relative overflow-hidden">
+      <div className="w-full max-w-md bg-white rounded-[24px] p-6 sm:p-8 shadow-[0_25px_60px_rgba(7,20,38,0.25)] border border-[rgba(25,40,55,0.08)] text-left relative overflow-hidden">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-800 transition"
+          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-[#192837] transition cursor-pointer"
         >
           <X className="w-4 h-4" />
         </button>
@@ -94,10 +94,10 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
             <img src={navLogo} alt="Skyrovix" className="h-9 w-auto object-contain" />
           </div>
           <div>
-            <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
+            <h3 className="font-heading text-xl font-black text-[#192837] tracking-tight">
               Sign In to Skyrovix
             </h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[#4C5B6D] mt-1">
               Enter your registered email and password to access your dashboard
             </p>
           </div>
@@ -114,7 +114,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
         {/* Login Form */}
         <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-[#192837] mb-1">
               Email Address / Username <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
@@ -129,13 +129,13 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
                   setEmail(e.target.value);
                   if (error) setError('');
                 }}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">
+            <label className="block font-bold text-[#192837] mb-1">
               Account Password <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
@@ -150,7 +150,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
                   setPassword(e.target.value);
                   if (error) setError('');
                 }}
-                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-sky-500 text-slate-900"
+                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837]"
               />
               <button
                 type="button"
@@ -165,7 +165,11 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 text-white font-bold rounded-xl shadow-md transition flex items-center justify-center gap-2 text-xs bg-[#1864f8] hover:bg-blue-700 active:scale-[0.99] disabled:opacity-70"
+            className="w-full py-3.5 text-white font-extrabold rounded-[16px] shadow-md transition flex items-center justify-center gap-2 text-xs active:scale-[0.99] disabled:opacity-70 cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #087FC1, #2447B8)',
+              boxShadow: '0 8px 20px rgba(8,127,193,0.25)'
+            }}
           >
             {loading ? (
               <>
@@ -183,14 +187,14 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
 
         {/* Modal Footer Links */}
         <div className="mt-5 pt-3 border-t border-slate-100 text-center">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#4C5B6D]">
             Don't have an internship account yet?{' '}
             <button
               onClick={() => {
                 onClose();
                 if (onOpenApply) onOpenApply();
               }}
-              className="text-[#1864f8] font-bold hover:underline"
+              className="text-[#087FC1] font-bold hover:underline cursor-pointer"
             >
               Apply for Batch 1
             </button>

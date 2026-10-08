@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   Calendar, 
   Globe2, 
@@ -8,12 +9,15 @@ import {
   CreditCard, 
   Award, 
   CheckCircle2, 
-  ShieldCheck,
-  Sparkles,
   ArrowRight
 } from 'lucide-react';
+import { SpotlightCard } from './SpotlightCard';
+import { MagneticButton } from './MagneticButton';
 
 export const ProgramOverview = ({ onOpenApply }) => {
+  const shouldReduceMotion = useReducedMotion();
+  const easeOutQuart = [0.16, 1, 0.3, 1];
+
   const overviewCards = [
     {
       icon: Calendar,
@@ -23,7 +27,7 @@ export const ProgramOverview = ({ onOpenApply }) => {
       color: 'text-sky-600',
       bg: 'bg-sky-50',
       border: 'border-sky-200',
-      glow: 'group-hover:border-sky-400 group-hover:shadow-sky-500/10'
+      spotlight: 'rgba(8, 127, 193, 0.12)'
     },
     {
       icon: Globe2,
@@ -33,17 +37,17 @@ export const ProgramOverview = ({ onOpenApply }) => {
       color: 'text-cyan-600',
       bg: 'bg-cyan-50',
       border: 'border-cyan-200',
-      glow: 'group-hover:border-cyan-400 group-hover:shadow-cyan-500/10'
+      spotlight: 'rgba(24, 199, 232, 0.12)'
     },
     {
       icon: Code2,
       title: 'Program',
       value: 'Full Stack Development',
-      detail: 'React 19, Node.js, Express, PostgreSQL, Supabase & REST APIs',
+      detail: 'React 19, Node.js, Express, PostgreSQL, MySQL & REST APIs',
       color: 'text-blue-600',
       bg: 'bg-blue-50',
       border: 'border-blue-200',
-      glow: 'group-hover:border-blue-400 group-hover:shadow-blue-500/10'
+      spotlight: 'rgba(36, 71, 184, 0.12)'
     },
     {
       icon: FolderGit2,
@@ -53,7 +57,7 @@ export const ProgramOverview = ({ onOpenApply }) => {
       color: 'text-indigo-600',
       bg: 'bg-indigo-50',
       border: 'border-indigo-200',
-      glow: 'group-hover:border-indigo-400 group-hover:shadow-indigo-500/10'
+      spotlight: 'rgba(115, 66, 226, 0.12)'
     },
     {
       icon: BadgePercent,
@@ -63,7 +67,7 @@ export const ProgramOverview = ({ onOpenApply }) => {
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
       border: 'border-emerald-200',
-      glow: 'group-hover:border-emerald-400 group-hover:shadow-emerald-500/10'
+      spotlight: 'rgba(0, 185, 120, 0.12)'
     },
     {
       icon: CreditCard,
@@ -73,79 +77,106 @@ export const ProgramOverview = ({ onOpenApply }) => {
       color: 'text-amber-600',
       bg: 'bg-amber-50',
       border: 'border-amber-200',
-      glow: 'group-hover:border-amber-400 group-hover:shadow-amber-500/10'
+      spotlight: 'rgba(245, 158, 11, 0.12)'
     },
   ];
 
   return (
-    <section id="overview" className="py-20 bg-slate-50/70 border-y border-slate-200/80 relative">
+    <section id="overview" className="py-20 md:py-24 bg-[#F7F9FC] border-y border-[rgba(25,40,55,0.08)] relative">
       {/* Background decoration */}
-      <div className="absolute inset-0 bg-dots-pattern opacity-30 pointer-events-none" />
+      <div 
+        className="absolute inset-0 opacity-30 pointer-events-none"
+        style={{
+          backgroundImage: `radial-gradient(rgba(25, 40, 55, 0.10) 1px, transparent 1px)`,
+          backgroundSize: '24px 24px'
+        }}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Heading */}
-        <div className="text-center max-w-3xl mx-auto mb-14 space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-sky-100 text-sky-800 text-xs font-bold uppercase tracking-wider border border-sky-200 shadow-2xs">
-            <CheckCircle2 className="w-3.5 h-3.5 text-sky-600" />
+        <motion.div 
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 24, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.6, ease: easeOutQuart }}
+          className="text-center max-w-3xl mx-auto mb-14 space-y-3"
+        >
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#087FC1]/10 text-[#087FC1] text-xs font-bold uppercase tracking-wider border border-[#087FC1]/20">
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#087FC1]" />
             <span>EXECUTIVE SUMMARY</span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-950 tracking-tight">
+          <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-black text-[#192837] tracking-tight">
             Program Overview
           </h2>
 
-          <p className="text-slate-600 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+          <p className="text-[#4C5B6D] text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
             A comprehensive, hands-on 3-month engineering internship engineered to help you build real projects, master full stack architecture, and deploy live applications.
           </p>
-        </div>
+        </motion.div>
 
-        {/* 6 Key Parameter Cards */}
+        {/* 6 Key Parameter Cards with Staggered Scroll Reveal and SpotlightCard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {overviewCards.map((item, idx) => {
             const Icon = item.icon;
             return (
-              <div 
+              <motion.div
                 key={idx}
-                className={`p-6 sm:p-7 rounded-3xl bg-white border border-slate-200/90 shadow-soft hover:shadow-xl transition-all duration-300 text-left flex flex-col justify-between group ${item.glow}`}
+                initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 28, filter: 'blur(4px)' }}
+                whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.55, delay: idx * 0.08, ease: easeOutQuart }}
               >
-                <div>
-                  <div className="flex items-center justify-between mb-5">
-                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                      {item.title}
-                    </span>
-                    <div className={`p-3 rounded-2xl ${item.bg} ${item.color} border ${item.border} group-hover:scale-110 transition-transform shadow-2xs`}>
-                      <Icon className="w-5 h-5" />
+                <SpotlightCard
+                  spotlightColor={item.spotlight}
+                  hoverY={-5}
+                  className="p-7 rounded-[24px] bg-white border border-[rgba(25,40,55,0.08)] shadow-[0_10px_35px_rgba(25,40,55,0.04)] hover:shadow-[0_20px_45px_rgba(8,127,193,0.10)] h-full text-left flex flex-col justify-between group"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-5">
+                      <span className="text-xs font-bold uppercase tracking-wider text-[#4C5B6D]/70">
+                        {item.title}
+                      </span>
+                      <div className={`p-3 rounded-2xl ${item.bg} ${item.color} border ${item.border} group-hover:scale-110 transition-transform shadow-2xs`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
                     </div>
+
+                    <h3 className="font-heading text-2xl font-black text-[#192837] tracking-tight mb-2">
+                      {item.value}
+                    </h3>
+
+                    <p className="text-sm text-[#4C5B6D] font-normal leading-relaxed">
+                      {item.detail}
+                    </p>
                   </div>
-
-                  <h3 className="text-2xl font-black text-slate-900 tracking-tight mb-2">
-                    {item.value}
-                  </h3>
-
-                  <p className="text-sm text-slate-600 font-medium leading-relaxed">
-                    {item.detail}
-                  </p>
-                </div>
-              </div>
+                </SpotlightCard>
+              </motion.div>
             );
           })}
         </div>
 
         {/* Verified Credential Feature Card */}
-        <div className="mt-10 p-7 sm:p-10 rounded-3xl bg-gradient-to-r from-slate-950 via-[#0a1e3a] to-[#041228] text-white border border-sky-500/30 shadow-2xl text-left flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-80 h-80 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+        <motion.div 
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 30, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.65, ease: easeOutQuart }}
+          className="mt-10 p-7 sm:p-10 rounded-[24px] bg-gradient-to-r from-[#071426] via-[#0b1c34] to-[#040d1a] text-white border border-[#087FC1]/30 shadow-[0_20px_50px_rgba(7,20,38,0.25)] text-left flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden"
+        >
+          <div className="absolute right-0 top-0 w-80 h-80 bg-[#18C7E8]/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="flex items-start gap-4 relative z-10">
-            <div className="w-14 h-14 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300 shrink-0 shadow-inner">
+            <div className="w-14 h-14 rounded-2xl bg-[#087FC1]/20 border border-[#087FC1]/40 flex items-center justify-center text-[#18C7E8] shrink-0 shadow-inner">
               <Award className="w-7 h-7" />
             </div>
             <div className="space-y-1.5">
               <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-xl font-black text-white tracking-tight">
+                <h3 className="font-heading text-xl sm:text-2xl font-black text-white tracking-tight">
                   Official Skyrovix Digital Internship Certificate
                 </h3>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#00B978]/20 text-[#00B978] border border-[#00B978]/30">
                   INSTANT VERIFICATION QR
                 </span>
               </div>
@@ -155,14 +186,19 @@ export const ProgramOverview = ({ onOpenApply }) => {
             </div>
           </div>
 
-          <button
-            onClick={onOpenApply}
-            className="shrink-0 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-sky-400 to-cyan-400 hover:from-sky-300 hover:to-cyan-300 text-slate-950 text-sm font-extrabold transition-all shadow-lg shadow-cyan-500/25 cursor-pointer flex items-center gap-2 transform hover:scale-[1.02] active:scale-100"
-          >
-            <span>Apply for Batch 1</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+          <MagneticButton>
+            <button
+              onClick={onOpenApply}
+              className="shrink-0 px-6 py-4 rounded-[20px] text-white text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 shadow-[0_10px_25px_rgba(8,127,193,0.30)] hover:shadow-[0_15px_35px_rgba(8,127,193,0.45)]"
+              style={{
+                background: 'linear-gradient(135deg, #087FC1, #2447B8)'
+              }}
+            >
+              <span>Apply for Batch 1</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </MagneticButton>
+        </motion.div>
 
       </div>
     </section>

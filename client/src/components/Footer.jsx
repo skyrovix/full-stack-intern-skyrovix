@@ -1,54 +1,76 @@
 import React from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { 
   ArrowRight, 
   Globe, 
   MessageCircle, 
   ShieldCheck, 
-  Heart,
-  Terminal,
-  ExternalLink
+  Heart, 
+  Terminal, 
+  ExternalLink 
 } from 'lucide-react';
 import footerLogo from '../assets/top nav bar logo.png';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
+import { MagneticButton } from './MagneticButton';
 
 export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin, onOpenCertificate, whatsappUrl }) => {
+  const shouldReduceMotion = useReducedMotion();
+  const easeOutQuart = [0.16, 1, 0.3, 1];
+
   return (
-    <footer className="bg-slate-950 text-white pt-16 pb-12 border-t border-slate-900 text-left">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+    <footer className="bg-[#040b15] text-white pt-16 pb-12 border-t border-[rgba(25,40,55,0.20)] text-left">
+      <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
         
         {/* Pre-Footer Final Call to Action */}
-        <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-r from-sky-900 via-blue-900 to-indigo-950 border border-sky-800/80 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="space-y-2 max-w-2xl">
-            <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+        <motion.div 
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 30, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.65, ease: easeOutQuart }}
+          className="p-8 sm:p-12 rounded-[24px] bg-gradient-to-r from-[#071426] via-[#0b1c34] to-[#12163b] border border-[#087FC1]/30 shadow-[0_20px_50px_rgba(7,20,38,0.40)] flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden"
+        >
+          <div className="absolute right-0 top-0 w-80 h-80 bg-[#18C7E8]/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute left-0 bottom-0 w-80 h-80 bg-[#7342E2]/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="space-y-2 max-w-2xl relative z-10">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#18C7E8]">
               ADMISSIONS CLOSING SOON
             </span>
-            <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+            <h3 className="font-heading text-2xl sm:text-3xl font-black text-white tracking-tight">
               START YOUR FULL STACK JOURNEY WITH SKYROVIX
             </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
               Join Batch 1 today. Build 50+ practical projects, deploy live full-stack web applications, and build your technical career foundation.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
-            <button
-              onClick={onOpenApply}
-              id="footer-apply-btn"
-              className="px-8 py-4 bg-white text-slate-950 hover:bg-sky-50 font-black text-sm rounded-xl shadow-lg transition-all transform hover:scale-105"
-            >
-              APPLY FOR BATCH 1 (₹200)
-            </button>
-            <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm"
-            >
-              <WhatsAppIcon className="w-4 h-4 fill-white" />
-              <span>WhatsApp</span>
-            </a>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0 relative z-10">
+            <MagneticButton>
+              <button
+                onClick={onOpenApply}
+                id="footer-apply-btn"
+                className="w-full sm:w-auto px-8 py-4 text-white font-extrabold text-sm rounded-[20px] shadow-lg transition-all cursor-pointer"
+                style={{
+                  background: 'linear-gradient(135deg, #087FC1, #2447B8)',
+                  boxShadow: '0 10px 25px rgba(8,127,193,0.30)'
+                }}
+              >
+                APPLY FOR BATCH 1 (₹200)
+              </button>
+            </MagneticButton>
+            <MagneticButton>
+              <a
+                href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto px-6 py-4 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-sm rounded-[20px] flex items-center justify-center gap-2 transition-colors shadow-sm cursor-pointer"
+              >
+                <WhatsAppIcon className="w-4 h-4 fill-white" />
+                <span>WhatsApp</span>
+              </a>
+            </MagneticButton>
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Footer Links Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pt-4">
@@ -116,7 +138,7 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
 
           {/* Quick Links */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-300">
               Quick Navigation
             </h4>
             <ul className="space-y-2 text-xs text-slate-400">
@@ -131,7 +153,7 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
 
           {/* Program Details */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-300">
               Batch 1 Program
             </h4>
             <ul className="space-y-2 text-xs text-slate-400">
@@ -147,12 +169,12 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
 
           {/* Portals & Legal */}
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+            <h4 className="font-heading text-xs font-bold uppercase tracking-wider text-slate-300">
               Portals &amp; Legal
             </h4>
             <ul className="space-y-2 text-xs text-slate-400">
               <li>
-                <button onClick={onOpenLogin || onOpenDashboard} className="hover:text-sky-400 transition-colors text-left">
+                <button onClick={onOpenLogin || onOpenDashboard} className="hover:text-sky-400 transition-colors text-left cursor-pointer">
                   User Dashboard Login
                 </button>
               </li>

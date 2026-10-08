@@ -24,6 +24,7 @@ import { FAQSection } from './components/FAQSection';
 import { Footer } from './components/Footer';
 import { MobileStickyCTA } from './components/MobileStickyCTA';
 import { LoginModal } from './components/LoginModal';
+import { ScrollProgress } from './components/ScrollProgress';
 
 export default function App() {
   // Current view mode: 'landing' | 'payment_status' | 'student_dashboard' | 'admin_dashboard' | 'certificate_view'
@@ -260,7 +261,9 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 w-full max-w-full overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-white text-[#192837] font-body w-full max-w-full overflow-x-hidden">
+      {/* 2.5px Thin Top Scroll-Progress Indicator */}
+      <ScrollProgress />
       
       {/* Universal Navigation (Landing & Public pages) */}
       <Navbar

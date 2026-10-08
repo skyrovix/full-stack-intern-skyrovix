@@ -1,28 +1,85 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { 
+  motion, 
+  useMotionValue, 
+  useSpring, 
+  useTransform, 
+  useReducedMotion 
+} from 'framer-motion';
 import { 
   ArrowRight, 
   Layers, 
-  Globe2, 
-  GitBranch, 
   Rocket, 
-  Clock, 
+  Sparkles, 
+  Award, 
+  Clock3, 
   CheckCircle2, 
   ShieldCheck, 
-  BookOpen
+  BookOpen,
+  Code2,
+  Database,
+  Cpu,
+  GitBranch
 } from 'lucide-react';
 import { WhatsAppIcon } from './BrandIcons';
+import { MagneticButton } from './MagneticButton';
+import { SpotlightCard } from './SpotlightCard';
 
 export const Hero = ({ onOpenApply, onOpenGuide, whatsappUrl }) => {
+  const heroRef = useRef(null);
+  const shouldReduceMotion = useReducedMotion();
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+
+  useEffect(() => {
+    setIsTouchDevice(window.matchMedia('(pointer: coarse)').matches);
+  }, []);
+
+  // Desktop Mouse Parallax Values
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  const springConfig = { damping: 30, stiffness: 60, mass: 0.2 };
+  const smoothMouseX = useSpring(mouseX, springConfig);
+  const smoothMouseY = useSpring(mouseY, springConfig);
+
+  // Parallax offsets for floating tech items
+  const p1X = useTransform(smoothMouseX, [-600, 600], [-22, 22]);
+  const p1Y = useTransform(smoothMouseY, [-600, 600], [-18, 18]);
+
+  const p2X = useTransform(smoothMouseX, [-600, 600], [25, -25]);
+  const p2Y = useTransform(smoothMouseY, [-600, 600], [-20, 20]);
+
+  const p3X = useTransform(smoothMouseX, [-600, 600], [-18, 18]);
+  const p3Y = useTransform(smoothMouseY, [-600, 600], [22, -22]);
+
+  const p4X = useTransform(smoothMouseX, [-600, 600], [20, -20]);
+  const p4Y = useTransform(smoothMouseY, [-600, 600], [16, -16]);
+
+  const handleHeroMouseMove = (e) => {
+    if (isTouchDevice || shouldReduceMotion) return;
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    mouseX.set(x);
+    mouseY.set(y);
+  };
+
+  const handleHeroMouseLeave = () => {
+    mouseX.set(0);
+    mouseY.set(0);
+  };
+
   const techStack = [
     { name: 'React 19', tag: 'UI Library' },
     { name: 'Node.js', tag: 'Runtime' },
     { name: 'Express.js', tag: 'REST API' },
-    { name: 'PostgreSQL', tag: 'Relational DB' },
-    { name: 'Supabase', tag: 'Backend & DB' },
+    { name: 'MySQL & PostgreSQL', tag: 'Relational DB' },
+    { name: 'MongoDB', tag: 'NoSQL' },
     { name: 'Tailwind CSS', tag: 'Styling' },
     { name: 'Cashfree PG', tag: 'Payments' },
     { name: 'Git & GitHub', tag: 'Version Control' },
-    { name: 'Vercel', tag: 'Edge Deploy' },
+    { name: 'Vercel & Render', tag: 'Cloud Deploy' },
     { name: 'Custom Domain', tag: 'DNS & SSL' }
   ];
 
@@ -40,217 +97,469 @@ export const Hero = ({ onOpenApply, onOpenGuide, whatsappUrl }) => {
     }
   };
 
+  const officialWhatsApp = whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP';
+
+  // Smooth Vercel/Linear easing curve
+  const easeOutQuart = [0.16, 1, 0.3, 1];
+
+  const floatingVisuals = [
+    { label: 'React 19', icon: Code2, x: '5%', y: '16%', delay: 0, pX: p1X, pY: p1Y },
+    { label: 'Node.js API', icon: Cpu, x: '85%', y: '14%', delay: 1.1, pX: p2X, pY: p2Y },
+    { label: 'SQL Database', icon: Database, x: '7%', y: '56%', delay: 2.2, pX: p3X, pY: p3Y },
+    { label: 'Git Workflow', icon: GitBranch, x: '84%', y: '54%', delay: 0.9, pX: p4X, pY: p4Y },
+  ];
+
   return (
-    <section className="relative overflow-hidden pt-8 pb-16 md:pt-14 md:pb-24 bg-gradient-to-b from-white via-sky-50/40 to-slate-50 text-center">
-      {/* Dynamic Background Mesh & Glowing Aurora Lights */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-60 pointer-events-none" />
-      <div className="absolute inset-0 bg-dots-pattern opacity-40 pointer-events-none" />
+    <section 
+      ref={heroRef}
+      onMouseMove={handleHeroMouseMove}
+      onMouseLeave={handleHeroMouseLeave}
+      className="relative overflow-hidden pt-8 pb-16 md:pt-16 md:pb-24 bg-white text-center"
+    >
+      {/* Subtle Technical Grid Background */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-40 z-0"
+        style={{
+          backgroundImage: `
+            linear-gradient(to right, rgba(25, 40, 55, 0.04) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(25, 40, 55, 0.04) 1px, transparent 1px)
+          `,
+          backgroundSize: '40px 40px'
+        }}
+      />
       
-      {/* Ambient Radial Lighting */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[480px] bg-gradient-to-b from-sky-400/20 via-cyan-300/15 to-transparent blur-3xl rounded-full pointer-events-none" />
-      <div className="absolute top-1/4 left-10 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/4 right-10 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Animated Drifting Ambient Radial Glows */}
+      {!shouldReduceMotion ? (
+        <>
+          {/* Top Center Cyan/Blue Glow */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.08, 1],
+              x: [0, 20, 0],
+              y: [0, -12, 0]
+            }}
+            transition={{
+              duration: 16,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-gradient-to-b from-[#18C7E8]/12 via-[#087FC1]/8 to-transparent blur-3xl rounded-full pointer-events-none z-0" 
+          />
+          
+          {/* Left Light Blue Glow */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.15, 1],
+              x: [0, -20, 0],
+              y: [0, 18, 0]
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+            className="absolute top-1/4 -left-20 w-80 h-80 bg-[#087FC1]/6 rounded-full blur-3xl pointer-events-none z-0" 
+          />
+          
+          {/* Right Light Purple Glow */}
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.12, 1],
+              x: [0, 18, 0],
+              y: [0, -16, 0]
+            }}
+            transition={{
+              duration: 18,
+              repeat: Infinity,
+              ease: 'easeInOut'
+            }}
+            className="absolute top-1/3 -right-20 w-80 h-80 bg-[#7342E2]/6 rounded-full blur-3xl pointer-events-none z-0" 
+          />
+        </>
+      ) : (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[450px] bg-gradient-to-b from-[#18C7E8]/10 via-[#087FC1]/6 to-transparent blur-3xl rounded-full pointer-events-none z-0" />
+      )}
 
-      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+      {/* Floating Tech Elements with Slow Hover & Desktop Mouse Parallax */}
+      <div className="hidden lg:block absolute inset-0 pointer-events-none max-w-[1340px] mx-auto z-10">
+        {floatingVisuals.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <motion.div
+              key={item.label}
+              initial={shouldReduceMotion ? { opacity: 0.85 } : { opacity: 0, scale: 0.8 }}
+              animate={shouldReduceMotion ? { opacity: 0.85 } : { 
+                opacity: 0.85, 
+                scale: 1,
+                y: [0, -10, 0]
+              }}
+              style={
+                !isTouchDevice && !shouldReduceMotion
+                  ? { left: item.x, top: item.y, x: item.pX, y: item.pY }
+                  : { left: item.x, top: item.y }
+              }
+              transition={{
+                opacity: { duration: 0.8, delay: 0.35 + idx * 0.12 },
+                scale: { duration: 0.8, delay: 0.35 + idx * 0.12 },
+                y: { duration: 5 + idx, repeat: Infinity, ease: 'easeInOut', delay: item.delay }
+              }}
+              className="absolute inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white/85 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_8px_24px_rgba(25,40,55,0.06)] text-xs font-bold text-[#192837]"
+            >
+              <div className="w-5 h-5 rounded-lg bg-[#087FC1]/10 text-[#087FC1] flex items-center justify-center">
+                <Icon className="w-3 h-3" />
+              </div>
+              <span>{item.label}</span>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="relative z-20 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         
-        {/* Top Floating Announcement Beacon */}
-        <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 px-4 py-2 rounded-full bg-white/95 border border-sky-200/90 text-slate-800 text-xs font-semibold shadow-soft backdrop-blur-md hover:border-sky-400 transition-all hover:shadow-md">
-          <span className="flex h-2.5 w-2.5 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-sky-600"></span>
-          </span>
-          <span className="font-extrabold text-sky-900 uppercase tracking-wider text-[11px]">
-            SKYROVIX BATCH 1 ENROLLMENTS
-          </span>
-          <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:inline-block"></span>
-          <span className="text-slate-600 hidden sm:inline-block">Starts Within 10 Days</span>
-          <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-          <span className="font-extrabold text-emerald-800 bg-emerald-100/90 px-2.5 py-0.5 rounded-full border border-emerald-300 text-[11px]">
-            ₹0 Internship Fee • ₹200 Registration Only
-          </span>
-        </div>
+        {/* 1. HERO TOP BADGE (Floating Pill with animated pulse dot) */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.7, delay: 0.05, ease: easeOutQuart }}
+          className="inline-flex items-center justify-center"
+        >
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-5 py-2 rounded-full border border-[rgba(8,127,193,0.20)] bg-white/85 backdrop-blur-[14px] shadow-[0_8px_30px_rgba(8,127,193,0.08)] text-xs font-semibold">
+            {/* Animated Cyan/Blue Pulsing Dot */}
+            <span className="flex h-2 w-2 relative shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#18C7E8] opacity-80"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#087FC1]"></span>
+            </span>
 
-        {/* Main Headline & Value Statement */}
-        <div className="space-y-4 max-w-4xl mx-auto">
-          <p className="text-xs sm:text-sm font-extrabold uppercase tracking-[0.25em] text-sky-600">
+            <span className="font-extrabold text-[#192837] uppercase tracking-wider text-[11px] sm:text-xs">
+              SKYROVIX BATCH 1 ENROLLMENTS
+            </span>
+            <span className="w-1 h-1 rounded-full bg-slate-300 hidden sm:inline-block"></span>
+            <span className="text-[#4C5B6D] hidden sm:inline-block">Starts Within 10 Days</span>
+            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+            <span className="font-extrabold text-[#00B978] bg-[#00B978]/10 px-2.5 py-0.5 rounded-full border border-[#00B978]/25 text-[11px]">
+              ₹0 Internship Fee • ₹200 Registration Only
+            </span>
+          </div>
+        </motion.div>
+
+        {/* 2. HERO EYEBROW */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.7, delay: 0.12, ease: easeOutQuart }}
+        >
+          <p className="text-[12px] sm:text-[13px] font-bold uppercase tracking-[0.18em] text-[#087FC1]">
             OFFICIAL 3-MONTH FULL STACK DEVELOPMENT INTERNSHIP
           </p>
+        </motion.div>
 
-          <h1 className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight text-slate-950 leading-[1.08]">
-            Build Real Systems. <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 via-cyan-500 to-blue-700">
-              Deploy Production Apps.
-            </span>
+        {/* 3. HERO MAIN HEADLINE (Cinematic Text-Mask Reveal) */}
+        <div className="max-w-5xl mx-auto space-y-1">
+          <h1 className="font-heading font-extrabold text-center tracking-[-0.04em] leading-[0.98] text-[clamp(2.5rem,7vw,6.2rem)]">
+            {/* Line 1: Build Real Systems */}
+            <div className="overflow-hidden py-1">
+              <motion.span
+                initial={shouldReduceMotion ? { opacity: 1 } : { y: '105%', opacity: 0, filter: 'blur(8px)' }}
+                animate={{ y: '0%', opacity: 1, filter: 'blur(0px)' }}
+                transition={{ duration: 0.85, delay: 0.18, ease: easeOutQuart }}
+                className="block text-[#192837]"
+              >
+                Build Real Systems.
+              </motion.span>
+            </div>
+
+            {/* Line 2: Deploy Production Apps */}
+            <div className="overflow-hidden py-1">
+              <motion.span
+                initial={shouldReduceMotion ? { opacity: 1 } : { y: '105%', opacity: 0, filter: 'blur(10px)' }}
+                animate={{ y: '0%', opacity: 1, filter: 'blur(0px)' }}
+                transition={{ duration: 0.9, delay: 0.32, ease: easeOutQuart }}
+                className="block text-transparent bg-clip-text"
+                style={{
+                  backgroundImage: 'linear-gradient(110deg, #087FC1 0%, #18C7E8 45%, #7342E2 100%)'
+                }}
+              >
+                Deploy Production Apps.
+              </motion.span>
+            </div>
           </h1>
-
-          <p className="text-lg sm:text-2xl font-bold text-slate-800 tracking-tight">
-            Learn • Build • Test • Deploy • Showcase
-          </p>
-
-          <p className="text-sm sm:text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed font-normal">
-            Gain genuine full-stack experience through hands-on practical engineering. Master the complete software journey from initial idea to live domain deployment with AI tools, relational SQL databases, secure REST APIs, Cashfree payment gateway, and live Vercel deployments.
-          </p>
         </div>
 
-        {/* Action CTA Buttons */}
-        <div className="space-y-4 pt-1">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-xl mx-auto">
-            <button
-              onClick={onOpenApply}
-              id="hero-apply-btn"
-              className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-2xl text-sm sm:text-base font-extrabold text-white bg-gradient-to-r from-sky-600 via-sky-700 to-blue-800 hover:from-sky-700 hover:to-blue-900 shadow-xl shadow-sky-600/30 hover:shadow-sky-600/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-            >
-              <span>APPLY FOR BATCH 1 (₹200)</span>
-              <ArrowRight className="w-5 h-5" />
-            </button>
+        {/* 4. HERO SUBHEADLINE */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 18, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.7, delay: 0.48, ease: easeOutQuart }}
+        >
+          <p className="text-[clamp(1rem,2vw,1.35rem)] font-bold text-[#192837] tracking-tight flex items-center justify-center flex-wrap gap-2 sm:gap-2.5">
+            <span>Learn</span>
+            <span className="text-[#18C7E8] font-black">•</span>
+            <span>Build</span>
+            <span className="text-[#18C7E8] font-black">•</span>
+            <span>Test</span>
+            <span className="text-[#18C7E8] font-black">•</span>
+            <span>Deploy</span>
+            <span className="text-[#18C7E8] font-black">•</span>
+            <span>Showcase</span>
+          </p>
+        </motion.div>
 
-            <a
-              href={whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
-              target="_blank"
-              rel="noopener noreferrer"
-              id="hero-whatsapp-btn"
-              className="w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl text-sm sm:text-base font-extrabold text-emerald-950 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-300 shadow-md transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+        {/* 5. HERO DESCRIPTION */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 20, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.7, delay: 0.58, ease: easeOutQuart }}
+          className="max-w-[680px] mx-auto"
+        >
+          <p className="text-[15px] sm:text-[18px] leading-[1.7] font-normal text-[#4C5B6D] text-center">
+            Gain genuine full-stack experience through hands-on practical engineering. Master the complete software journey from initial idea to live domain deployment with AI tools, relational SQL databases, secure REST APIs, Cashfree payment gateway, and live Vercel deployments.
+          </p>
+        </motion.div>
+
+        {/* 6. HERO CTA BUTTONS with Magnetic Hover & Micro-interactions */}
+        <motion.div
+          initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 22, filter: 'blur(6px)' }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+          transition={{ duration: 0.7, delay: 0.68, ease: easeOutQuart }}
+          className="pt-2 space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 max-w-xl mx-auto">
+            {/* PRIMARY: APPLY FOR BATCH 1 (₹200) */}
+            <MagneticButton
+              onClick={onOpenApply}
+              className="w-full sm:w-auto"
             >
-              <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
-              <span>JOIN WHATSAPP GROUP</span>
-            </a>
+              <button
+                id="hero-apply-btn"
+                className="w-full sm:w-auto min-w-[280px] sm:min-w-[300px] h-[58px] inline-flex items-center justify-center gap-2.5 px-7 rounded-[20px] text-sm sm:text-base font-extrabold text-white cursor-pointer shadow-[0_15px_35px_rgba(8,127,193,0.22)] hover:shadow-[0_20px_45px_rgba(8,127,193,0.35)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+                style={{
+                  background: 'linear-gradient(135deg, #087FC1, #2447B8)'
+                }}
+              >
+                <span>APPLY FOR BATCH 1</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-white/20 text-white border border-white/30">
+                  ₹200
+                </span>
+                <ArrowRight className="w-5 h-5 ml-0.5" />
+              </button>
+            </MagneticButton>
+
+            {/* SECONDARY: JOIN WHATSAPP GROUP */}
+            <MagneticButton className="w-full sm:w-auto">
+              <a
+                href={officialWhatsApp}
+                target="_blank"
+                rel="noopener noreferrer"
+                id="hero-whatsapp-btn"
+                className="w-full sm:w-auto min-w-[240px] h-[58px] inline-flex items-center justify-center gap-2.5 px-6 rounded-[20px] text-sm sm:text-base font-extrabold text-[#123F35] bg-[#ECFFF8] hover:bg-[#d8fced] border border-[#35D39A] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0"
+              >
+                <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
+                <span>JOIN WHATSAPP GROUP</span>
+              </a>
+            </MagneticButton>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-semibold text-slate-600">
+          {/* 7. HERO SUPPORT LINKS */}
+          <motion.div 
+            initial={shouldReduceMotion ? { opacity: 1 } : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.78, ease: easeOutQuart }}
+            className="flex flex-wrap items-center justify-center gap-3.5 sm:gap-6 text-[13px] sm:text-[14px] font-semibold text-[#4C5B6D] pt-2"
+          >
             <a
               href="/guide"
               onClick={handleScrollToGuide}
-              className="inline-flex items-center gap-1.5 text-sky-700 hover:text-sky-900 hover:underline font-bold"
+              className="inline-flex items-center gap-1.5 text-[#087FC1] hover:text-[#7342E2] font-bold transition-colors cursor-pointer"
             >
-              <BookOpen className="w-4 h-4 text-sky-600" />
-              <span>Explore Detailed Student Guide →</span>
+              <BookOpen className="w-4 h-4 text-[#087FC1]" />
+              <span>Explore Detailed Student Guide</span>
             </a>
-            <span className="text-slate-300">•</span>
-            <span className="inline-flex items-center gap-1 text-slate-600">
-              <Clock className="w-3.5 h-3.5 text-sky-600" />
-              <span>Batch 1 starts within next 10 days</span>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="inline-flex items-center gap-1.5 text-[#4C5B6D]">
+              <Clock3 className="w-4 h-4 text-[#087FC1]" />
+              <span>Batch Starts Within Next 10 Days</span>
             </span>
-            <span className="text-slate-300">•</span>
-            <span className="inline-flex items-center gap-1 text-emerald-700 font-bold">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <span className="inline-flex items-center gap-1.5 text-[#00B978] font-bold">
+              <ShieldCheck className="w-4 h-4 text-[#00B978]" />
               <span>Zero Tuition Fee</span>
             </span>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
 
-        {/* 4-Pillar High-Tech Metrics Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 max-w-4xl mx-auto text-left pt-2">
-          
-          <div className="p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-soft hover:border-sky-400 hover:shadow-card-hover transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 border border-sky-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-xl font-black text-slate-950">50+</span>
-              <span className="text-[10px] font-bold text-sky-700 uppercase">Projects</span>
-            </div>
-            <p className="text-xs font-bold text-slate-900 mb-0.5">Real-World Projects</p>
-            <p className="text-[11px] text-slate-500 leading-tight">Progressive business use cases</p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-soft hover:border-cyan-400 hover:shadow-card-hover transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 border border-cyan-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <Globe2 className="w-5 h-5" />
-            </div>
-            <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-xl font-black text-slate-950">100%</span>
-              <span className="text-[10px] font-bold text-cyan-700 uppercase">Virtual</span>
-            </div>
-            <p className="text-xs font-bold text-slate-900 mb-0.5">Remote Learning</p>
-            <p className="text-[11px] text-slate-500 leading-tight">Batch-based sprint tasks</p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-soft hover:border-blue-400 hover:shadow-card-hover transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <Rocket className="w-5 h-5" />
-            </div>
-            <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-xl font-black text-slate-950">LIVE</span>
-              <span className="text-[10px] font-bold text-blue-700 uppercase">Deploy</span>
-            </div>
-            <p className="text-xs font-bold text-slate-900 mb-0.5">Live Production</p>
-            <p className="text-[11px] text-slate-500 leading-tight">Vercel, Render &amp; Databases</p>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-white/95 border border-slate-200/90 shadow-soft hover:border-indigo-400 hover:shadow-card-hover transition-all group">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-              <GitBranch className="w-5 h-5" />
-            </div>
-            <div className="flex items-baseline gap-1 mb-0.5">
-              <span className="text-xl font-black text-slate-950">GIT</span>
-              <span className="text-[10px] font-bold text-indigo-700 uppercase">&amp; GitHub</span>
-            </div>
-            <p className="text-xs font-bold text-slate-900 mb-0.5">Git Workflows</p>
-            <p className="text-[11px] text-slate-500 leading-tight">Branches, commits &amp; portfolio</p>
-          </div>
-
-        </div>
-
-        {/* High-Trust Pricing & Transparency Card */}
-        <div className="max-w-2xl mx-auto p-5 sm:p-6 rounded-3xl bg-white/95 border-2 border-sky-100 shadow-xl text-left space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                  Zero Tuition Fee
+        {/* 8. HERO INFORMATION CARDS with SpotlightCard mouse tracking glow */}
+        <div className="pt-8 sm:pt-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 text-left max-w-[1280px] mx-auto">
+            
+            {/* Card 01: REAL PROJECTS */}
+            <SpotlightCard
+              spotlightColor="rgba(8, 127, 193, 0.12)"
+              borderColor="rgba(8, 127, 193, 0.35)"
+              className="p-6 rounded-[24px] bg-white/85 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_10px_40px_rgba(25,40,55,0.06)]"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-heading font-black text-2xl text-[#087FC1]/40 group-hover:text-[#087FC1] transition-colors">
+                  01
                 </span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                  • Official Batch 1 Enrollment
-                </span>
+                <div className="w-10 h-10 rounded-2xl bg-[#087FC1]/10 text-[#087FC1] flex items-center justify-center transition-transform">
+                  <Layers className="w-5 h-5" />
+                </div>
               </div>
-              <h3 className="text-lg font-black text-slate-900">
-                100% Transparent Fee Structure
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#087FC1] block mb-1">
+                PRACTICAL CURRICULUM
+              </span>
+              <h3 className="font-heading font-bold text-lg text-[#192837] mb-1">
+                Real Projects
               </h3>
-            </div>
-
-            <div className="text-left sm:text-right">
-              <div className="flex items-center sm:justify-end gap-2">
-                <span className="text-sm font-semibold text-slate-400 line-through">₹12,000</span>
-                <span className="text-xl font-black text-emerald-700">₹0 Fee</span>
-              </div>
-              <p className="text-xs font-extrabold text-slate-900">
-                ₹200 Registration Fee Only
+              <p className="text-xs text-[#4C5B6D] leading-relaxed">
+                50 progressive production deliverables moving from DOM fundamentals to multi-user full-stack apps.
               </p>
-            </div>
-          </div>
+            </SpotlightCard>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-600 font-medium">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Full 3-Month hands-on internship curriculum</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>No training fees or hidden course charges</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Official Batch 1 WhatsApp orientation access</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Verifiable Skyrovix Internship Certificate</span>
-            </div>
+            {/* Card 02: PRODUCTION DEPLOYMENT */}
+            <SpotlightCard
+              spotlightColor="rgba(24, 199, 232, 0.14)"
+              borderColor="rgba(24, 199, 232, 0.35)"
+              className="p-6 rounded-[24px] bg-white/85 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_10px_40px_rgba(25,40,55,0.06)]"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-heading font-black text-2xl text-[#18C7E8]/40 group-hover:text-[#18C7E8] transition-colors">
+                  02
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-[#18C7E8]/10 text-[#087FC1] flex items-center justify-center transition-transform">
+                  <Rocket className="w-5 h-5" />
+                </div>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#18C7E8] block mb-1">
+                EDGE &amp; CLOUD DEPLOY
+              </span>
+              <h3 className="font-heading font-bold text-lg text-[#192837] mb-1">
+                Production Deployment
+              </h3>
+              <p className="text-xs text-[#4C5B6D] leading-relaxed">
+                Deploy live on Vercel and Render with live relational databases, custom domains, and automated SSL.
+              </p>
+            </SpotlightCard>
+
+            {/* Card 03: AI-ASSISTED DEVELOPMENT */}
+            <SpotlightCard
+              spotlightColor="rgba(115, 66, 226, 0.14)"
+              borderColor="rgba(115, 66, 226, 0.35)"
+              className="p-6 rounded-[24px] bg-white/85 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_10px_40px_rgba(25,40,55,0.06)]"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-heading font-black text-2xl text-[#7342E2]/40 group-hover:text-[#7342E2] transition-colors">
+                  03
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-[#7342E2]/10 text-[#7342E2] flex items-center justify-center transition-transform">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#7342E2] block mb-1">
+                MODERN ENGINEERING
+              </span>
+              <h3 className="font-heading font-bold text-lg text-[#192837] mb-1">
+                AI-Assisted Development
+              </h3>
+              <p className="text-xs text-[#4C5B6D] leading-relaxed">
+                Master AI developer tools for rapid scaffolding, automated test generation, code reviews, and schema modeling.
+              </p>
+            </SpotlightCard>
+
+            {/* Card 04: CERTIFICATE */}
+            <SpotlightCard
+              spotlightColor="rgba(0, 185, 120, 0.14)"
+              borderColor="rgba(0, 185, 120, 0.35)"
+              className="p-6 rounded-[24px] bg-white/85 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_10px_40px_rgba(25,40,55,0.06)]"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="font-heading font-black text-2xl text-[#00B978]/40 group-hover:text-[#00B978] transition-colors">
+                  04
+                </span>
+                <div className="w-10 h-10 rounded-2xl bg-[#00B978]/10 text-[#00B978] flex items-center justify-center transition-transform">
+                  <Award className="w-5 h-5" />
+                </div>
+              </div>
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#00B978] block mb-1">
+                OFFICIAL CREDENTIAL
+              </span>
+              <h3 className="font-heading font-bold text-lg text-[#192837] mb-1">
+                Verifiable Certificate
+              </h3>
+              <p className="text-xs text-[#4C5B6D] leading-relaxed">
+                Receive an official, tamper-proof Skyrovix internship certificate with permanent online registry verification.
+              </p>
+            </SpotlightCard>
+
           </div>
         </div>
+
+        {/* 100% Transparent Fee Structure Card with Spotlight */}
+        <SpotlightCard
+          spotlightColor="rgba(8, 127, 193, 0.08)"
+          borderColor="rgba(8, 127, 193, 0.25)"
+          className="max-w-2xl mx-auto p-6 sm:p-7 rounded-[24px] bg-white/90 backdrop-blur-md border border-[rgba(25,40,55,0.08)] shadow-[0_10px_40px_rgba(25,40,55,0.06)] text-left"
+        >
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#00B978]/10 text-[#00B978] border border-[#00B978]/25">
+                    Zero Tuition Fee
+                  </span>
+                  <span className="text-[10px] font-bold text-[#4C5B6D] uppercase tracking-wide">
+                    • Official Batch 1 Enrollment
+                  </span>
+                </div>
+                <h3 className="font-heading font-bold text-xl text-[#192837]">
+                  100% Transparent Fee Structure
+                </h3>
+              </div>
+
+              <div className="text-left sm:text-right">
+                <div className="flex items-center sm:justify-end gap-2">
+                  <span className="text-sm font-semibold text-slate-400 line-through">₹12,000</span>
+                  <span className="font-heading font-black text-2xl text-[#00B978]">₹0 Fee</span>
+                </div>
+                <p className="text-xs font-extrabold text-[#192837]">
+                  ₹200 Registration Fee Only
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-[#4C5B6D] font-medium">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00B978] shrink-0" />
+                <span>Full hands-on curriculum (3 or 6 months track)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00B978] shrink-0" />
+                <span>No training fees or hidden course charges</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00B978] shrink-0" />
+                <span>Official Batch 1 WhatsApp orientation access</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-[#00B978] shrink-0" />
+                <span>Verifiable Skyrovix Internship Certificate</span>
+              </div>
+            </div>
+          </div>
+        </SpotlightCard>
 
         {/* Tech Stack Chip Bar */}
-        <div className="pt-2 border-t border-slate-200/80">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500 mb-3">
+        <div className="pt-4 border-t border-[rgba(25,40,55,0.06)]">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-[#4C5B6D] mb-3">
             Full Stack Technologies Covered in Batch 1:
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             {techStack.map((tech) => (
               <span
                 key={tech.name}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-slate-200/90 text-slate-700 shadow-2xs hover:border-sky-300 hover:text-sky-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white border border-[rgba(25,40,55,0.08)] text-[#192837] shadow-2xs hover:border-[#087FC1]/40 hover:text-[#087FC1] transition-colors"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#087FC1]"></span>
                 <strong>{tech.name}</strong>
                 <span className="text-[10px] text-slate-400 font-normal">({tech.tag})</span>
               </span>

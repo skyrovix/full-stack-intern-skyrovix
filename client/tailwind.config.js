@@ -7,6 +7,11 @@ export default {
   theme: {
     extend: {
       colors: {
+        'brand-navy': '#192837',
+        'brand-accent': '#7342E2',
+        'brand-blue': '#087FC1',
+        'brand-cyan': '#18C7E8',
+        'brand-success': '#00B978',
         skyrovix: {
           50: '#f0f9ff',
           100: '#e0f2fe',
@@ -25,7 +30,9 @@ export default {
         }
       },
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'Inter', 'system-ui', 'sans-serif'],
+        heading: ['var(--font-heading)', 'Helvetica Now Display Bold', 'sans-serif'],
+        body: ['var(--font-body)', 'Inter', 'sans-serif'],
+        sans: ['var(--font-body)', 'Inter', 'Plus Jakarta Sans', 'system-ui', 'sans-serif'],
       }
     },
   },
