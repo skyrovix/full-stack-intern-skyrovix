@@ -56,12 +56,21 @@ export function renderOfferLetterHtml(data) {
 
   const studentName = data.student_name || 'Hariharan S';
   const internId = data.intern_id || data.student_id_formatted || `SKX-2026-${String(data.student_id || '9055').slice(-4)}`;
-  const offerId = data.offer_letter_id || data.verification_code || `SKX-OFFER-2026-${String(data.student_id || '9055').slice(-4)}`;
-  const domain = data.domain || 'Cloud Computing';
-  const duration = data.duration || '1 Month';
+  const domain = data.domain || 'Full Stack Development';
+  const isSixMonths = String(data.duration || '').includes('6');
+  const durationNum = isSixMonths ? 6 : 3;
+  const duration = `${durationNum} Months`;
   const issueDate = data.issue_date || '21 September 2026';
   const startDate = data.start_date || issueDate;
-  const endDate = data.end_date || '21 October 2026';
+
+  let endDate = data.end_date;
+  if (!endDate || endDate === '21 October 2026' || endDate.includes('undefined')) {
+    const parsedStart = new Date(startDate);
+    const baseDate = !isNaN(parsedStart.getTime()) ? parsedStart : new Date();
+    const end = new Date(baseDate);
+    end.setMonth(end.getMonth() + durationNum);
+    endDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">

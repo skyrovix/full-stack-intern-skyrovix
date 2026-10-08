@@ -347,7 +347,7 @@ export async function initDb() {
 
         await mysqlPool.query(`
           INSERT IGNORE INTO registrations (id, student_id, batch_id, domain, duration, registration_status, payment_status, payment_order_id, internship_status)
-          VALUES (?, ?, 'batch-1', 'Full Stack Development', '1 Month', 'CONFIRMED', 'PAID', 'SKY-B1-1791133400408-440496', 'ACTIVE')
+          VALUES (?, ?, 'batch-1', 'Full Stack Development', '3 Months', 'CONFIRMED', 'PAID', 'SKY-B1-1791133400408-440496', 'ACTIVE')
         `, [regId, hariId]);
 
         await mysqlPool.query(`
@@ -539,7 +539,7 @@ export async function initDb() {
       program TEXT NOT NULL,
       domain TEXT NOT NULL,
       batch TEXT DEFAULT 'Batch 1',
-      duration TEXT DEFAULT '1 Month',
+      duration TEXT DEFAULT '3 Months',
       issue_date TEXT NOT NULL,
       status TEXT DEFAULT 'ACTIVE',
       verification_code TEXT UNIQUE NOT NULL,
@@ -709,7 +709,7 @@ export async function initDb() {
   // Safe column additions to registrations
   try { await dbRun(`ALTER TABLE registrations ADD COLUMN internship_id TEXT`); } catch (e) {}
   try { await dbRun(`ALTER TABLE registrations ADD COLUMN domain TEXT DEFAULT 'Full Stack Development'`); } catch (e) {}
-  try { await dbRun(`ALTER TABLE registrations ADD COLUMN duration TEXT DEFAULT '1 Month'`); } catch (e) {}
+  try { await dbRun(`ALTER TABLE registrations ADD COLUMN duration TEXT DEFAULT '3 Months'`); } catch (e) {}
   try { await dbRun(`ALTER TABLE registrations ADD COLUMN start_date TEXT`); } catch (e) {}
   try { await dbRun(`ALTER TABLE registrations ADD COLUMN end_date TEXT`); } catch (e) {}
   try { await dbRun(`ALTER TABLE registrations ADD COLUMN mentor TEXT DEFAULT 'Technical Mentor Board'`); } catch (e) {}
@@ -896,7 +896,7 @@ export async function initDb() {
         '3-Month Full Stack Development Internship',
         'Full Stack Development',
         'Batch 1',
-        '1 Month',
+        '3 Months',
         '21 Sept 2026',
         'ACTIVE',
         'SKX-OL-2026-9055',

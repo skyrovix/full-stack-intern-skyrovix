@@ -86,8 +86,8 @@ async function runTestSuite() {
       VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual', ?, 'ACTIVE', ?, 'Terms', ?, 'SENT')
     `, [
       olId, olCode, studentId, internshipId, 'Vishal R',
-      '3-Month Full Stack Development Internship', 'Cloud Computing', '1 Month',
-      '21 September 2026', '21 October 2026', todayStr, olCode,
+      '3-Month Full Stack Development Internship', 'Cloud Computing', '3 Months',
+      '21 September 2026', '21 December 2026', todayStr, olCode,
       `/api/documents/offer-letter/${olId}/view`
     ]);
 
@@ -99,10 +99,10 @@ async function runTestSuite() {
       offer_letter_id: olCode,
       verification_code: olCode,
       domain: 'Cloud Computing',
-      duration: '1 Month',
+      duration: '3 Months',
       issue_date: '21 September 2026',
       start_date: '21 September 2026',
-      end_date: '21 October 2026'
+      end_date: '21 December 2026'
     });
 
     assert(olHtml.includes('INTERNSHIP OFFER LETTER'), 'Offer Letter HTML rendered with official title');
@@ -117,9 +117,9 @@ async function runTestSuite() {
       offer_letter_id: olCode,
       intern_id: studentIdFormatted,
       domain: 'Cloud Computing',
-      duration: '1 Month',
+      duration: '3 Months',
       start_date: '21 September 2026',
-      end_date: '21 October 2026',
+      end_date: '21 December 2026',
       document_url: `http://localhost:5000/api/documents/offer-letter/${olId}/view`
     });
 

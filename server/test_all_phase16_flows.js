@@ -153,7 +153,7 @@ async function runPhase16Tests() {
       body: JSON.stringify({
         student_id: studentId,
         domain: 'Full Stack Development',
-        duration: '1 Month',
+        duration: '3 Months',
         start_date: '15 October 2026'
       })
     });
@@ -178,7 +178,7 @@ async function runPhase16Tests() {
       headers: adminHeaders,
       body: JSON.stringify({
         domain: 'Full Stack Development',
-        duration: '1 Month',
+        duration: '3 Months',
         issueDate: '15 November 2026'
       })
     });

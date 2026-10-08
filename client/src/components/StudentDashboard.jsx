@@ -800,10 +800,11 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   const domainName = 'Full Stack Development';
 
   const enrollmentDate = profile.full_name === 'Hariharan S' ? '21 Sept 2026' : (registration?.created_at ? new Date(registration.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '21 Sept 2026');
-  const durationStr = '3 Months';
+  const isSixMonths = String(internship?.duration || registration?.duration || offerLettersList[0]?.duration || '').includes('6');
+  const durationStr = isSixMonths ? '6 Months' : '3 Months';
 
   // Dynamic real-time task calculations based on live database submissions
-  const totalTasksCount = tasksList.length || 50;
+  const totalTasksCount = tasksList.length || (isSixMonths ? 50 : 25);
   const completedTasksCount = tasksList.filter(t => t.status === 'Completed' || t.submission?.status === 'APPROVED').length;
   const submittedTasksCount = tasksList.filter(t => (t.status === 'Submitted' || t.submission?.status === 'SUBMITTED') && t.submission?.status !== 'APPROVED').length;
   const pendingTasksCount = tasksList.filter(t => {
@@ -811,11 +812,22 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
     const isSubmitted = t.status === 'Submitted' || t.submission?.status === 'SUBMITTED';
     return !isCompleted && !isSubmitted;
   }).length;
-  const month1TasksCount = tasksList.filter(t => (t.order_num || 0) >= 1 && (t.order_num || 0) <= 15).length;
-  const month2TasksCount = tasksList.filter(t => (t.order_num || 0) >= 16 && (t.order_num || 0) <= 35).length;
-  const month3TasksCount = tasksList.filter(t => (t.order_num || 0) >= 36 && (t.order_num || 0) <= 50).length;
+  const month1TasksCount = tasksList.filter(t => (t.order_num || 0) >= 1 && (t.order_num || 0) <= 8).length;
+  const month2TasksCount = tasksList.filter(t => (t.order_num || 0) >= 9 && (t.order_num || 0) <= 16).length;
+  const month3TasksCount = tasksList.filter(t => (t.order_num || 0) >= 17 && (t.order_num || 0) <= 25).length;
+  const month4TasksCount = tasksList.filter(t => (t.order_num || 0) >= 26 && (t.order_num || 0) <= 33).length;
+  const month5TasksCount = tasksList.filter(t => (t.order_num || 0) >= 34 && (t.order_num || 0) <= 41).length;
+  const month6TasksCount = tasksList.filter(t => (t.order_num || 0) >= 42 && (t.order_num || 0) <= 50).length;
   const progressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
   const unreadNotifsCount = notificationsList.filter(n => !n.is_read).length;
+
+  const getCalculatedEndDate = (startDateStr, monthsCount = (isSixMonths ? 6 : 3)) => {
+    const d = new Date(startDateStr);
+    const base = !isNaN(d.getTime()) ? d : new Date();
+    const end = new Date(base);
+    end.setMonth(end.getMonth() + monthsCount);
+    return end.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  };
 
   // SVG Gauge calculations
   const gaugeRadius = 38;
@@ -1314,7 +1326,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                               internId: ol?.internship_id || ol?.intern_id || studentFormattedId,
                               domain: ol?.domain || domainName,
                               issuedAt: ol?.issue_date || enrollmentDate,
-                              duration: parseInt(ol?.duration, 10) || 1
+                              duration: ol?.duration || durationStr
                             });
                           }}
                           className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
@@ -2094,9 +2106,12 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           {activeView === 'tasks' && (() => {
             const filteredTasks = tasksList.filter(task => {
               const order = task.order_num || 0;
-              if (taskMonthFilter === 'MONTH_1' && (order < 1 || order > 15)) return false;
-              if (taskMonthFilter === 'MONTH_2' && (order < 16 || order > 35)) return false;
-              if (taskMonthFilter === 'MONTH_3' && (order < 36 || order > 50)) return false;
+              if (taskMonthFilter === 'MONTH_1' && (order < 1 || order > 8)) return false;
+              if (taskMonthFilter === 'MONTH_2' && (order < 9 || order > 16)) return false;
+              if (taskMonthFilter === 'MONTH_3' && (order < 17 || order > 25)) return false;
+              if (taskMonthFilter === 'MONTH_4' && (order < 26 || order > 33)) return false;
+              if (taskMonthFilter === 'MONTH_5' && (order < 34 || order > 41)) return false;
+              if (taskMonthFilter === 'MONTH_6' && (order < 42 || order > 50)) return false;
 
               const isCompleted = task.status === 'Completed' || task.submission?.status === 'APPROVED';
               const isSubmitted = !isCompleted && (task.status === 'Submitted' || task.submission?.status === 'SUBMITTED');
@@ -2136,10 +2151,10 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
-                        50 SPRINT PROJECTS
+                        {isSixMonths ? '50 SPRINT PROJECTS' : '25 SPRINT PROJECTS'}
                       </span>
                       <span className="text-xs font-bold text-slate-500">
-                        3-Month Full Stack Internship
+                        {durationStr} Full Stack Internship
                       </span>
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">
@@ -2209,6 +2224,43 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                   >
                     Month 3: Advanced Full Stack ({month3TasksCount})
                   </button>
+
+                  {isSixMonths && (
+                    <>
+                      <button
+                        onClick={() => setTaskMonthFilter('MONTH_4')}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition ${
+                          taskMonthFilter === 'MONTH_4'
+                            ? 'bg-purple-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        Month 4: Cloud &amp; APIs ({month4TasksCount})
+                      </button>
+
+                      <button
+                        onClick={() => setTaskMonthFilter('MONTH_5')}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition ${
+                          taskMonthFilter === 'MONTH_5'
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        Month 5: DevOps &amp; Scaling ({month5TasksCount})
+                      </button>
+
+                      <button
+                        onClick={() => setTaskMonthFilter('MONTH_6')}
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition ${
+                          taskMonthFilter === 'MONTH_6'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        Month 6: Capstone Platform ({month6TasksCount})
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* Search Bar & Status Filter Row */}
@@ -2617,7 +2669,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                             internId: ol.internship_id || ol.intern_id || studentFormattedId,
                             domain: ol.domain || domainName,
                             issuedAt: ol.issue_date || enrollmentDate,
-                            duration: parseInt(ol.duration, 10) || 1
+                            duration: ol.duration || durationStr
                           });
                         }}
                         className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
@@ -3005,7 +3057,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                           internId: selectedOfferLetter?.internship_id || selectedOfferLetter?.intern_id || studentFormattedId,
                           domain: selectedOfferLetter?.domain || domainName,
                           issuedAt: selectedOfferLetter?.issue_date || enrollmentDate,
-                          duration: parseInt(selectedOfferLetter?.duration, 10) || 1
+                          duration: selectedOfferLetter?.duration || durationStr
                         });
                       }}
                       className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
@@ -3096,7 +3148,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
                     <span className="font-semibold text-slate-600">Program Duration</span>
-                    <span className="font-bold text-slate-900">{selectedOfferLetter?.duration || '1 Month'}</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.duration || durationStr}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
                     <span className="font-semibold text-slate-600">Commencement Date</span>
@@ -3104,7 +3156,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4 bg-slate-50/50">
                     <span className="font-semibold text-slate-600">Estimated Completion</span>
-                    <span className="font-bold text-slate-900">{selectedOfferLetter?.end_date || '21 October 2026'}</span>
+                    <span className="font-bold text-slate-900">{selectedOfferLetter?.end_date || getCalculatedEndDate(selectedOfferLetter?.start_date || selectedOfferLetter?.issue_date || '21 September 2026')}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 p-2.5 px-4">
                     <span className="font-semibold text-slate-600">Stipend Specification</span>

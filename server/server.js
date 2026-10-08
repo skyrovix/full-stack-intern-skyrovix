@@ -223,6 +223,7 @@ app.post('/api/registrations/apply', async (req, res) => {
       githubUrl,
       linkedinUrl,
       skillLevel,
+      duration,
       agreedTerms
     } = req.body;
 
@@ -338,6 +339,13 @@ app.post('/api/registrations/apply', async (req, res) => {
       student = await dbGet(`SELECT * FROM students WHERE id = ?`, [studentId]);
     }
 
+    const chosenDuration = String(duration || '3 Months').includes('6') ? '6 Months' : '3 Months';
+    const durationMonths = chosenDuration === '6 Months' ? 6 : 3;
+    const todayFormatted = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const endCalc = new Date();
+    endCalc.setMonth(endCalc.getMonth() + durationMonths);
+    const endFormatted = endCalc.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
     // Check or create registration
     let registration = await dbGet(
       `SELECT * FROM registrations WHERE student_id = ? AND batch_id = 'batch-1'`,
@@ -347,11 +355,19 @@ app.post('/api/registrations/apply', async (req, res) => {
     if (!registration) {
       const regId = `REG-B1-${Date.now().toString().slice(-6)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
       await dbRun(
-        `INSERT INTO registrations (id, student_id, batch_id, registration_status, payment_status)
-         VALUES (?, ?, 'batch-1', 'APPLICATION_STARTED', 'CREATED')`,
-        [regId, student.id]
+        `INSERT INTO registrations (id, student_id, batch_id, domain, duration, start_date, end_date, registration_status, payment_status)
+         VALUES (?, ?, 'batch-1', 'Full Stack Development', ?, ?, ?, 'APPLICATION_STARTED', 'CREATED')`,
+        [regId, student.id, chosenDuration, todayFormatted, endFormatted]
       );
       registration = await dbGet(`SELECT * FROM registrations WHERE id = ?`, [regId]);
+    } else {
+      await dbRun(
+        `UPDATE registrations SET duration = ?, start_date = ?, end_date = ? WHERE id = ?`,
+        [chosenDuration, todayFormatted, endFormatted, registration.id]
+      );
+      registration.duration = chosenDuration;
+      registration.start_date = todayFormatted;
+      registration.end_date = endFormatted;
     }
 
     // Generate unique Cashfree Order ID
@@ -804,13 +820,16 @@ export async function checkCertificateEligibility(studentId) {
     reasons.push(`Training & Learning modules incomplete (${approvedModuleCount}/5 approved)`);
   }
 
-  // 5. Stage 3 Project / Capstone check (at least 1 capstone project must be APPROVED)
+  // 5. Stage 3 Project / Capstone check (all tasks must be APPROVED)
+  const isSixTrack = String(registration?.duration || '').includes('6');
+  const requiredTasks = isSixTrack ? 50 : 25;
   const approvedProjects = await dbAll(
     'SELECT id FROM submissions WHERE student_id = ? AND status = "APPROVED"',
     [studentId]
   );
-  if (!approvedProjects || approvedProjects.length === 0) {
-    reasons.push('Capstone internship project deliverable has not been approved by mentor board');
+  const approvedCount = approvedProjects?.length || 0;
+  if (approvedCount < requiredTasks) {
+    reasons.push(`All ${requiredTasks} internship tasks must be completed & approved (${approvedCount}/${requiredTasks} approved)`);
   }
 
   const existingCert = await dbGet('SELECT * FROM certificates WHERE student_id = ?', [studentId]);
@@ -852,8 +871,15 @@ export async function autoIssueOfferLetterAndEmail(studentId, req = null) {
 
     const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
     const domain = registration?.domain || 'Full Stack Development';
-    const duration = registration?.duration || '1 Month';
-    const endDate = registration?.end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const isSixMonths = String(registration?.duration || '').includes('6');
+    const durationNum = isSixMonths ? 6 : 3;
+    const duration = `${durationNum} Months`;
+    const program = `${durationNum}-Month Full Stack Development Internship`;
+
+    const endD = new Date();
+    endD.setMonth(endD.getMonth() + durationNum);
+    const calculatedEndDate = endD.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const endDate = registration?.end_date && registration.end_date !== '21 October 2026' ? registration.end_date : calculatedEndDate;
 
     let existingOL = await dbGet('SELECT * FROM offer_letters WHERE student_id = ?', [studentId]);
     let olId, olCode, pdfUrl;
@@ -872,7 +898,7 @@ export async function autoIssueOfferLetterAndEmail(studentId, req = null) {
         VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
       `, [
         olId, olCode, student.id, internshipId, student.full_name,
-        '3-Month Full Stack Development Internship', domain, duration,
+        program, domain, duration,
         todayDate, endDate, todayDate, olCode, pdfUrl
       ]);
 
@@ -881,7 +907,14 @@ export async function autoIssueOfferLetterAndEmail(studentId, req = null) {
       olId = existingOL.id;
       olCode = existingOL.verification_code || existingOL.offer_letter_id || existingOL.id;
       pdfUrl = existingOL.pdf_url || `/api/documents/offer-letter/${olId}/view`;
+
+      if (!existingOL.duration || existingOL.duration === '1 Month' || !existingOL.end_date || existingOL.end_date === '21 October 2026') {
+        await dbRun('UPDATE offer_letters SET duration = ?, program = ?, end_date = ? WHERE id = ?', [duration, program, endDate, olId]);
+        existingOL = await dbGet('SELECT * FROM offer_letters WHERE id = ?', [olId]);
+      }
     }
+
+    await dbRun('UPDATE registrations SET duration = ?, end_date = ? WHERE student_id = ?', [duration, endDate, studentId]);
 
     // Determine host for document view link
     let host = req ? req.get?.('host') : 'localhost:5000';
@@ -955,10 +988,12 @@ export async function autoIssueCertificateAndEmail(studentId, req = null, option
     const certId = existingCert ? existingCert.id : `SKX-CERT-2026-${Math.floor(10000 + Math.random() * 90000)}`;
     const internId = student.student_id_formatted || registration?.internship_id || `SKX-2026-${String(student.id).slice(-4)}`;
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    const isSixTrack = String(options.duration || registration?.duration || '').includes('6');
+    const durationNum = isSixTrack ? 6 : 3;
+    const duration = `${durationNum} Months`;
     const domain = options.domain || registration?.domain || 'Full Stack Development';
-    const program = options.program || '3-Month Full Stack Development Internship';
+    const program = options.program || `${durationNum}-Month Full Stack Development Internship`;
     const batch = options.batch || 'Batch 1';
-    const duration = options.duration || registration?.duration || '3 Months';
     const startDate = options.start_date || registration?.start_date || '01 August 2026';
     const endDate = options.end_date || registration?.end_date || today;
     const verifyUrl = `https://www.skyrovix.in/verify/${certId}`;
@@ -1139,8 +1174,8 @@ app.get('/api/documents/offer-letter/:id/view', async (req, res) => {
       intern_id: ol.internship_id || student?.student_id_formatted,
       offer_letter_id: ol.verification_code || ol.id,
       verification_code: ol.verification_code,
-      domain: ol.domain || 'Cloud Computing',
-      duration: ol.duration || '1 Month',
+      domain: ol.domain || 'Full Stack Development',
+      duration: ol.duration || '3 Months',
       issue_date: ol.issue_date,
       start_date: ol.start_date || ol.issue_date,
       end_date: ol.end_date
@@ -1168,8 +1203,8 @@ app.get('/api/documents/offer-letter/:id/download', async (req, res) => {
       intern_id: ol.internship_id || student?.student_id_formatted,
       offer_letter_id: ol.verification_code || ol.id,
       verification_code: ol.verification_code,
-      domain: ol.domain || 'Cloud Computing',
-      duration: ol.duration || '1 Month',
+      domain: ol.domain || 'Full Stack Development',
+      duration: ol.duration || '3 Months',
       issue_date: ol.issue_date,
       start_date: ol.start_date || ol.issue_date,
       end_date: ol.end_date
@@ -1790,12 +1825,21 @@ app.get('/api/user/workflow', requirePaidStudent, async (req, res) => {
     // Get offer letter
     let offerLetter = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
     if (!offerLetter) {
+      const registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ?`, [student.id]);
+      const isSix = String(registration?.duration || '').includes('6');
+      const durationNum = isSix ? 6 : 3;
+      const duration = `${durationNum} Months`;
+      const program = `${durationNum}-Month Full Stack Development Internship`;
       const code = `SKX-OL-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
       const olId = `OL-SKX-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
+      const endD = new Date();
+      endD.setMonth(endD.getMonth() + durationNum);
+      const endDate = endD.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
       await dbRun(`
-        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
-        VALUES (?, ?, ?, '3-Month Full Stack Development Internship', ?, 'Batch 1', '1 Month', '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
-      `, [olId, student.id, student.full_name, 'Full Stack Development', code]);
+        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, start_date, end_date, issue_date, status, verification_code, terms)
+        VALUES (?, ?, ?, ?, ?, 'Batch 1', ?, '21 Sept 2026', ?, '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
+      `, [olId, student.id, student.full_name, program, registration?.domain || 'Full Stack Development', duration, endDate, code]);
       offerLetter = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
     }
 
@@ -2155,9 +2199,13 @@ app.get('/api/user/profile', requirePaidStudent, async (req, res) => {
     const unreadNotifs = await dbGet(`SELECT COUNT(*) as count FROM user_notifications WHERE user_id = ? AND is_read = 0`, [student.id]);
     const workflow = await getOrCreateInternWorkflow(student.id);
 
-    const totalCount = totalTasks?.count || 6;
+    const offerLetter = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
+    const durationRaw = registration?.duration || offerLetter?.duration || '3 Months';
+    const isSixMonths = String(durationRaw).includes('6');
+    const taskLimit = isSixMonths ? 50 : 25;
+
     const approvedCount = approvedTasks?.count || 0;
-    const realProgress = Math.round((approvedCount / totalCount) * 100);
+    const realProgress = Math.min(100, Math.round((approvedCount / taskLimit) * 100));
 
     res.json({
       success: true,
@@ -2182,6 +2230,8 @@ app.get('/api/user/profile', requirePaidStudent, async (req, res) => {
         certificates_count: certCount?.count || 0,
         offer_letters_count: olCount?.count || 0,
         tasks_completed: approvedCount,
+        total_tasks: taskLimit,
+        duration: isSixMonths ? '6 Months' : '3 Months',
         unread_notifications: unreadNotifs?.count || 0,
         progress_pct: realProgress
       },
@@ -2325,14 +2375,30 @@ app.get('/api/user/internship', requirePaidStudent, async (req, res) => {
     const student = req.student;
 
     const registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ?`, [student.id]);
+    const offerLetter = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
+    const durationRaw = registration?.duration || offerLetter?.duration || '3 Months';
+    const isSixMonths = String(durationRaw).includes('6');
+    const durationNum = isSixMonths ? 6 : 3;
+    const duration = `${durationNum} Months`;
+    const program = `${durationNum}-Month Full Stack Development Internship`;
+    const taskLimit = isSixMonths ? 50 : 25;
+
     const batch = await dbGet(`SELECT * FROM batches WHERE id = 'batch-1'`);
     const whatsappSetting = await dbGet(`SELECT value FROM settings WHERE \`key\` = 'BATCH_1_WHATSAPP_URL'`);
     const startNotice = await dbGet(`SELECT value FROM settings WHERE \`key\` = 'BATCH_START_NOTICE'`);
     const approvedTasks = await dbGet(`SELECT COUNT(*) as count FROM submissions WHERE student_id = ? AND status = 'APPROVED'`, [student.id]);
-    const totalT = await dbGet(`SELECT COUNT(*) as count FROM student_tasks`);
-    const totalCount = totalT?.count || 6;
     const approvedCount = approvedTasks?.count || 0;
-    const realProgress = Math.round((approvedCount / totalCount) * 100);
+    const realProgress = Math.min(100, Math.round((approvedCount / taskLimit) * 100));
+
+    const startDate = registration?.start_date || offerLetter?.start_date || '21 Sept 2026';
+    let endDate = registration?.end_date || offerLetter?.end_date;
+    if (!endDate || endDate === '26 Oct 2026' || endDate === '21 October 2026' || endDate.includes('undefined')) {
+      const parsedStart = new Date(startDate);
+      const baseDate = !isNaN(parsedStart.getTime()) ? parsedStart : new Date();
+      const end = new Date(baseDate);
+      end.setMonth(end.getMonth() + durationNum);
+      endDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
 
     const workflow = await getOrCreateInternWorkflow(student.id);
 
@@ -2348,15 +2414,17 @@ app.get('/api/user/internship', requirePaidStudent, async (req, res) => {
         manual_lock_reason: workflow.manual_lock_reason
       },
       internship: {
-        domain: 'Full Stack Development',
-        program: batch?.title || '3-Month Full Stack Development Internship',
+        domain: registration?.domain || offerLetter?.domain || 'Full Stack Development',
+        program: program,
         batch_name: batch?.name || 'Batch 1',
-        duration: '1 Month',
-        start_date: '21 Sept 2026',
-        end_date: '26 Oct 2026',
+        duration: duration,
+        start_date: startDate,
+        end_date: endDate,
         status: registration?.registration_status === 'CONFIRMED' || registration?.payment_status === 'PAID' ? 'Active' : 'Pending Confirmation',
         mentor: 'Senior Full Stack Architect & Lead Technical Reviewer (Skyrovix)',
         progress_pct: realProgress,
+        total_tasks: taskLimit,
+        completed_tasks: approvedCount,
         whatsapp_url: whatsappSetting?.value || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP',
         start_notice: startNotice?.value || 'Batch 1 starts within the next 10 days.',
         overview: 'Comprehensive hands-on virtual internship covering modern full stack web architecture, responsive frontend, secure Node/Express APIs, relational & NoSQL databases, and production deployments.',
@@ -2378,12 +2446,17 @@ app.get('/api/user/internship', requirePaidStudent, async (req, res) => {
   }
 });
 
-// Get user tasks with submission status
 app.get('/api/user/tasks', requirePaidStudent, async (req, res) => {
   try {
     const student = req.student;
 
-    const allTasks = await dbAll(`SELECT * FROM student_tasks ORDER BY order_num ASC`);
+    const registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ?`, [student.id]);
+    const offerLetter = await dbGet(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
+    const durationRaw = registration?.duration || offerLetter?.duration || '3 Months';
+    const isSixMonths = String(durationRaw).includes('6');
+    const taskLimit = isSixMonths ? 50 : 25;
+
+    const allTasks = await dbAll(`SELECT * FROM student_tasks WHERE order_num <= ? ORDER BY order_num ASC`, [taskLimit]);
     const submissions = await dbAll(`SELECT * FROM submissions WHERE student_id = ?`, [student.id]);
 
     const tasks = allTasks.map(t => {
@@ -2437,6 +2510,8 @@ app.get('/api/user/tasks', requirePaidStudent, async (req, res) => {
     res.json({
       success: true,
       is_stage_locked: false,
+      duration: isSixMonths ? '6 Months' : '3 Months',
+      total_tasks: taskLimit,
       tasks
     });
   } catch (e) {
@@ -2522,12 +2597,21 @@ app.get('/api/user/offer-letters', requirePaidStudent, async (req, res) => {
     let letters = await dbAll(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
 
     if (letters.length === 0) {
+      const registration = await dbGet(`SELECT * FROM registrations WHERE student_id = ?`, [student.id]);
+      const isSix = String(registration?.duration || '').includes('6');
+      const durationNum = isSix ? 6 : 3;
+      const duration = `${durationNum} Months`;
+      const program = `${durationNum}-Month Full Stack Development Internship`;
       const code = `SKX-OL-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
       const olId = `OL-SKX-2026-${student.id ? student.id.slice(-4).toUpperCase() : '9055'}`;
+      const endD = new Date();
+      endD.setMonth(endD.getMonth() + durationNum);
+      const endDate = endD.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
       await dbRun(`
-        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, issue_date, status, verification_code, terms)
-        VALUES (?, ?, ?, '3-Month Full Stack Development Internship', ?, 'Batch 1', '1 Month', '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
-      `, [olId, student.id, student.full_name, 'Full Stack Development', code]);
+        INSERT INTO offer_letters (id, student_id, student_name, program, domain, batch, duration, start_date, end_date, issue_date, status, verification_code, terms)
+        VALUES (?, ?, ?, ?, ?, 'Batch 1', ?, '21 Sept 2026', ?, '21 Sept 2026', 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.')
+      `, [olId, student.id, student.full_name, program, registration?.domain || 'Full Stack Development', duration, endDate, code]);
       letters = await dbAll(`SELECT * FROM offer_letters WHERE student_id = ?`, [student.id]);
     }
 
@@ -3041,9 +3125,14 @@ app.put('/api/admin/applications/:id/status', authenticateAdmin, async (req, res
           const olId = `OL-SKX-${Date.now().toString().slice(-4)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
           const olCode = `SKX-OL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
           const todayDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-          const domain = existing.domain || 'Cloud Computing';
-          const duration = existing.duration || '1 Month';
-          const endDate = existing.end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+          const domain = existing.domain || 'Full Stack Development';
+          const isSix = String(existing.duration || '').includes('6');
+          const durationNum = isSix ? 6 : 3;
+          const duration = `${durationNum} Months`;
+          const program = `${durationNum}-Month Full Stack Development Internship`;
+          const endD = new Date();
+          endD.setMonth(endD.getMonth() + durationNum);
+          const endDate = existing.end_date && existing.end_date !== '21 October 2026' ? existing.end_date : endD.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
           const pdfUrl = `/api/documents/offer-letter/${olId}/view`;
 
           await dbRun(`
@@ -3055,7 +3144,7 @@ app.put('/api/admin/applications/:id/status', authenticateAdmin, async (req, res
             VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
           `, [
             olId, olCode, student.id, internshipId, student.full_name,
-            '3-Month Full Stack Development Internship', domain, duration, todayDate, endDate,
+            program, domain, duration, todayDate, endDate,
             todayDate, olCode, pdfUrl
           ]);
 
@@ -3531,10 +3620,21 @@ app.post(['/api/admin/offer-letters/generate', '/api/internships/:id/offer-lette
     const olId = `OL-SKX-${Date.now().toString().slice(-4)}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
     const code = `SKX-OL-2026-${Math.floor(1000 + Math.random() * 9000)}`;
     const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-    const finalDomain = domain || registration?.domain || 'Cloud Computing';
-    const finalDuration = duration || registration?.duration || '1 Month';
+    const finalDomain = domain || registration?.domain || 'Full Stack Development';
+    const isSix = String(duration || registration?.duration || '').includes('6');
+    const durationNum = isSix ? 6 : 3;
+    const finalDuration = `${durationNum} Months`;
+    const finalProgram = program || `${durationNum}-Month Full Stack Development Internship`;
     const finalStartDate = start_date || today;
-    const finalEndDate = end_date || new Date(Date.now() + 30 * 24 * 3600 * 1000).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+
+    let finalEndDate = end_date;
+    if (!finalEndDate || finalEndDate === '21 October 2026' || finalEndDate.includes('undefined')) {
+      const parsedStart = new Date(finalStartDate);
+      const baseDate = !isNaN(parsedStart.getTime()) ? parsedStart : new Date();
+      const end = new Date(baseDate);
+      end.setMonth(end.getMonth() + durationNum);
+      finalEndDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
     const pdfUrl = `/api/documents/offer-letter/${olId}/view`;
 
     await dbRun(`
@@ -3546,9 +3646,11 @@ app.post(['/api/admin/offer-letters/generate', '/api/internships/:id/offer-lette
       VALUES (?, ?, ?, ?, ?, ?, ?, 'Virtual Technical Intern', ?, ?, ?, 'Remote / Virtual (Task-Based, Flexible Hours)', ?, 'ACTIVE', ?, 'Virtual internship engagement with mandatory milestone deliverables.', ?, 'PENDING')
     `, [
       olId, code, student.id, internshipId, student.full_name,
-      program || '3-Month Full Stack Development Internship', finalDomain, finalDuration,
+      finalProgram, finalDomain, finalDuration,
       finalStartDate, finalEndDate, today, code, pdfUrl
     ]);
+
+    await dbRun('UPDATE registrations SET duration = ?, end_date = ? WHERE student_id = ?', [finalDuration, finalEndDate, student.id]);
 
     // Send email automatically
     let emailSent = false;
@@ -3669,8 +3771,8 @@ app.post(['/api/admin/offer-letters/:id/resend-email', '/api/internships/:id/off
       student_name: student.full_name,
       offer_letter_id: ol.verification_code || ol.id,
       intern_id: internId,
-      domain: ol.domain || 'Cloud Computing',
-      duration: ol.duration || '1 Month',
+      domain: ol.domain || 'Full Stack Development',
+      duration: ol.duration || '3 Months',
       start_date: ol.start_date || ol.issue_date,
       end_date: ol.end_date,
       document_url: docUrl

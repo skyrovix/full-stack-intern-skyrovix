@@ -411,7 +411,7 @@ export function OfferLetterDoc({
   internId,
   domain = "Full Stack Development",
   issuedAt = new Date().toISOString(),
-  duration = 1,
+  duration = 3,
   imageAssets = defaultImageAssets,
 }) {
   const date = new Date(issuedAt);
@@ -419,11 +419,13 @@ export function OfferLetterDoc({
     ? date.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })
     : issuedAt;
   const domainName = domain ? domain.charAt(0).toUpperCase() + domain.slice(1) : "Full Stack Development";
-  const durLabel = `${duration} Month${duration > 1 ? "s" : ""}`;
+  const isSixMonths = String(duration || "").includes("6");
+  const durationNum = isSixMonths ? 6 : 3;
+  const durLabel = `${durationNum} Months`;
 
   const endDate = !isNaN(date.getTime()) ? new Date(date) : new Date();
   if (!isNaN(date.getTime())) {
-    endDate.setMonth(endDate.getMonth() + (Number(duration) || 1));
+    endDate.setMonth(endDate.getMonth() + durationNum);
   }
   const endDateStr = endDate.toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
 
@@ -936,7 +938,7 @@ export async function handleDownloadOfferLetter(data) {
     internId: internId,
     domain: data.domain || "Full Stack Development",
     issuedAt: data.issuedAt || data.issue_date || new Date().toISOString(),
-    duration: data.duration || 1,
+    duration: String(data.duration || '').includes('6') ? 6 : 3,
     imageAssets: data.imageAssets || defaultImageAssets,
     verifyUrl,
     qrCodeDataUri,

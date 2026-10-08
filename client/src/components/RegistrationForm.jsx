@@ -32,6 +32,7 @@ export const RegistrationForm = ({
     githubUrl: '',
     linkedinUrl: '',
     skillLevel: 'Beginner',
+    duration: '3 Months',
     agreedTerms: false
   });
 
@@ -192,7 +193,7 @@ export const RegistrationForm = ({
                 Internship Program
               </span>
               <h3 className="text-base font-extrabold text-slate-900">
-                Skyrovix Batch 1 – 3-Month Full Stack Development
+                Skyrovix Batch 1 – {formData.duration || '3 Months'} Full Stack Development ({formData.duration === '6 Months' ? '50 Tasks' : '25 Tasks'})
               </h3>
             </div>
             <div className="text-left sm:text-right">
@@ -210,6 +211,72 @@ export const RegistrationForm = ({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            
+            {/* Internship Duration / Track Selection */}
+            <div className="p-4 rounded-2xl bg-white border border-slate-200">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2.5">
+                Select Internship Track &amp; Duration <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div
+                  onClick={() => setFormData(prev => ({ ...prev, duration: '3 Months' }))}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-start gap-3 ${
+                    formData.duration === '3 Months'
+                      ? 'border-sky-600 bg-sky-50/70 shadow-xs ring-1 ring-sky-500'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="duration"
+                    value="3 Months"
+                    checked={formData.duration === '3 Months'}
+                    onChange={handleChange}
+                    className="mt-1 text-sky-600 focus:ring-sky-500"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-900 text-sm">3 Months Track</span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
+                        25 TASKS
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      25 Sprint Projects (Tasks #01–#25). Frontend foundations, APIs &amp; full stack architecture.
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setFormData(prev => ({ ...prev, duration: '6 Months' }))}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition flex items-start gap-3 ${
+                    formData.duration === '6 Months'
+                      ? 'border-sky-600 bg-sky-50/70 shadow-xs ring-1 ring-sky-500'
+                      : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="duration"
+                    value="6 Months"
+                    checked={formData.duration === '6 Months'}
+                    onChange={handleChange}
+                    className="mt-1 text-sky-600 focus:ring-sky-500"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-900 text-sm">6 Months Track</span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        50 TASKS
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">
+                      50 Sprint Projects (Tasks #01–#50). Comprehensive enterprise systems, microservices &amp; capstone platform.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
             
             {/* Row 1: Full Name & Email */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

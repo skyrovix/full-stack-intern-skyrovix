@@ -89,7 +89,7 @@ export const AdminDashboard = ({ onLogout }) => {
   const [showGenerateCertModal, setShowGenerateCertModal] = useState(false);
   const [newCertForm, setNewCertForm] = useState({ student_id: '', program: '3-Month Full Stack Development Internship', duration: '3 Months', batch: 'Batch 1' });
   const [showGenerateOLModal, setShowGenerateOLModal] = useState(false);
-  const [newOLForm, setNewOLForm] = useState({ student_id: '', domain: 'Full Stack Development', program: '3-Month Full Stack Development Internship', duration: '1 Month', batch: 'Batch 1' });
+  const [newOLForm, setNewOLForm] = useState({ student_id: '', domain: 'Full Stack Development', program: '3-Month Full Stack Development Internship', duration: '3 Months', batch: 'Batch 1' });
   const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   const [broadcastForm, setBroadcastForm] = useState({ title: '', message: '', type: 'announcement', targetAudience: 'ALL', userId: '' });
   const [selectedTicketThread, setSelectedTicketThread] = useState(null);
@@ -3307,14 +3307,19 @@ export const AdminDashboard = ({ onLogout }) => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Duration</label>
-                <input
-                  type="text"
-                  required
+                <label className="block font-bold text-slate-700 mb-1">Duration &amp; Track</label>
+                <select
                   value={newOLForm.duration}
-                  onChange={(e) => setNewOLForm({ ...newOLForm, duration: e.target.value })}
+                  onChange={(e) => {
+                    const dur = e.target.value;
+                    const prog = dur.includes('6') ? '6-Month Full Stack Development Internship' : '3-Month Full Stack Development Internship';
+                    setNewOLForm({ ...newOLForm, duration: dur, program: prog });
+                  }}
                   className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
+                >
+                  <option value="3 Months">3 Months (25 Tasks)</option>
+                  <option value="6 Months">6 Months (50 Tasks)</option>
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2">

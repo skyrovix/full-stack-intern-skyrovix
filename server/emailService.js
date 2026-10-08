@@ -81,11 +81,22 @@ export async function logEmailEvent(param1, param2, param3, param4, param5, para
 export async function sendOfferLetterEmail(params) {
   const email = params.student?.email || params.to || params.email;
   const studentName = params.student?.full_name || params.student_name || 'Student';
+  const domain = params.offerLetter?.domain || params.domain || params.student?.domain || 'Full Stack Web Development';
   const offerLetterId = params.offerLetter?.verification_code || params.offerLetter?.id || params.offer_letter_id || 'SKX-OL-2026';
-  const domain = params.offerLetter?.domain || params.domain || 'Full Stack Development';
-  const duration = params.offerLetter?.duration || params.duration || '1 Month';
+  const durationRaw = params.offerLetter?.duration || params.duration || '3 Months';
+  const isSixMonths = String(durationRaw).includes('6');
+  const durationNum = isSixMonths ? 6 : 3;
+  const duration = `${durationNum} Months`;
   const startDate = params.offerLetter?.start_date || params.start_date || '21 September 2026';
-  const endDate = params.offerLetter?.end_date || params.end_date || '21 October 2026';
+  
+  let endDate = params.offerLetter?.end_date || params.end_date;
+  if (!endDate || endDate === '21 October 2026' || endDate.includes('undefined')) {
+    const parsedStart = new Date(startDate);
+    const baseDate = !isNaN(parsedStart.getTime()) ? parsedStart : new Date();
+    const end = new Date(baseDate);
+    end.setMonth(end.getMonth() + durationNum);
+    endDate = end.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+  }
   const docUrl = params.document_url || `https://www.skyrovix.in/dashboard?view=offer-letters`;
   const fromAddress = process.env.SMTP_FROM || 'Skyrovix <skyrovix@gmail.com>';
 
