@@ -800,7 +800,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   const domainName = 'Full Stack Development';
 
   const enrollmentDate = profile.full_name === 'Hariharan S' ? '21 Sept 2026' : (registration?.created_at ? new Date(registration.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '21 Sept 2026');
-  const isSixMonths = String(internship?.duration || registration?.duration || offerLettersList[0]?.duration || '').includes('6');
+  const isSixMonths = String(internshipData?.duration || registration?.duration || offerLettersList[0]?.duration || '').includes('6');
   const durationStr = isSixMonths ? '6 Months' : '3 Months';
 
   // Dynamic real-time task calculations based on live database submissions
