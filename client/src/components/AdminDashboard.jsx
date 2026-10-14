@@ -56,7 +56,7 @@ import { AdminWorkflowManagement } from './workflow/AdminWorkflowManagement';
 export const AdminDashboard = ({ onLogout }) => {
   // Authentication State
   const [authToken, setAuthToken] = useState(localStorage.getItem('skyrovix_admin_token') || '');
-  const [loginForm, setLoginForm] = useState({ email: 'admin@skyrovix.com', password: '' });
+  const [loginForm, setLoginForm] = useState({ email: 'hariharan@skyrovix.com', password: '' });
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
 
@@ -1155,7 +1155,7 @@ export const AdminDashboard = ({ onLogout }) => {
             </div>
             <div className="min-w-0">
               <div className="text-xs font-bold text-white truncate">Super Administrator</div>
-              <div className="text-[10px] text-slate-400 truncate">admin@skyrovix.com</div>
+              <div className="text-[10px] text-slate-400 truncate">hariharan@skyrovix.com</div>
             </div>
           </div>
 
@@ -2824,7 +2824,7 @@ export const AdminDashboard = ({ onLogout }) => {
                     <Lock className="w-5 h-5 text-amber-600" />
                     <h3 className="text-base font-bold text-slate-900">Administrator Security &amp; Credentials</h3>
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 font-mono">admin@skyrovix.com</span>
+                  <span className="text-[10px] font-bold text-slate-400 font-mono">hariharan@skyrovix.com</span>
                 </div>
 
                 {adminPasswordStatus && (

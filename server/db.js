@@ -807,11 +807,32 @@ export async function initDb() {
     }
   }
 
-  // Seed default admin account (admin@skyrovix.com / Skyrovix@Admin2026)
-  const existingAdmin = await dbGet(`SELECT id FROM admins WHERE email = ?`, ['admin@skyrovix.com']);
+  // Seed/Sync default admin accounts (hariharan@skyrovix.com and admin@skyrovix.com / 123Sk_hari@2006)
+  const defaultAdminPassword = process.env.ADMIN_DEFAULT_PASSWORD || '123Sk_hari@2006';
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(defaultAdminPassword, salt);
+
+  // 1. Primary admin: hariharan@skyrovix.com
+  const existingHari = await dbGet(`SELECT id FROM admins WHERE LOWER(email) = ?`, ['hariharan@skyrovix.com']);
+  if (!existingHari) {
+    await dbRun(`
+      INSERT INTO admins (id, username, email, password_hash, role)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      'admin-hariharan',
+      'hariharan',
+      'hariharan@skyrovix.com',
+      passwordHash,
+      'SUPER_ADMIN'
+    ]);
+    console.log('👑 Admin seeded: hariharan@skyrovix.com (Password: 123Sk_hari@2006)');
+  } else {
+    await dbRun(`UPDATE admins SET password_hash = ?, role = 'SUPER_ADMIN' WHERE id = ?`, [passwordHash, existingHari.id]);
+  }
+
+  // 2. Fallback/legacy admin: admin@skyrovix.com
+  const existingAdmin = await dbGet(`SELECT id FROM admins WHERE LOWER(email) = ?`, ['admin@skyrovix.com']);
   if (!existingAdmin) {
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash('Skyrovix@Admin2026', salt);
     await dbRun(`
       INSERT INTO admins (id, username, email, password_hash, role)
       VALUES (?, ?, ?, ?, ?)
@@ -822,7 +843,9 @@ export async function initDb() {
       passwordHash,
       'SUPER_ADMIN'
     ]);
-    console.log('👑 Default admin seeded: admin@skyrovix.com (Password: Skyrovix@Admin2026)');
+    console.log('👑 Default admin seeded: admin@skyrovix.com (Password: 123Sk_hari@2006)');
+  } else {
+    await dbRun(`UPDATE admins SET password_hash = ?, role = 'SUPER_ADMIN' WHERE id = ?`, [passwordHash, existingAdmin.id]);
   }
 
   // Seed sample announcements

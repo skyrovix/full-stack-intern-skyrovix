@@ -379,4 +379,7 @@ VALUES
 ('REGISTRATION_STATUS_ACTIVE', 'true', 'Whether new registrations are active');
 
 INSERT IGNORE INTO `admins` (`id`, `username`, `email`, `password_hash`, `role`)
-VALUES ('admin-default', 'skyrovix_admin', 'admin@skyrovix.com', '$2b$10$fC00m65m094eFz3Bw0Uo4OSr0eXpQG31ZgVv8Z30qPj781V1B1S8.', 'SUPER_ADMIN');
+VALUES 
+('admin-hariharan', 'hariharan', 'hariharan@skyrovix.com', '$2b$10$eoldgeZnjLDDggPXNhuXR.WkSGwJxgDlZdvfunpkSpS0QsZEwsIYO', 'SUPER_ADMIN'),
+('admin-default', 'skyrovix_admin', 'admin@skyrovix.com', '$2b$10$eoldgeZnjLDDggPXNhuXR.WkSGwJxgDlZdvfunpkSpS0QsZEwsIYO', 'SUPER_ADMIN')
+ON DUPLICATE KEY UPDATE `password_hash` = VALUES(`password_hash`), `role` = VALUES(`role`);

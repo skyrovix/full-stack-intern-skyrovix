@@ -20,7 +20,7 @@ async function testDurationAndTasks() {
   const adminLoginRes = await fetch(`${BASE_URL}/api/admin/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@skyrovix.com', password: 'Skyrovix@Admin2026' })
+    body: JSON.stringify({ email: 'hariharan@skyrovix.com', password: '123Sk_hari@2006' })
   });
   const adminLoginData = await adminLoginRes.json();
   const adminToken = adminLoginData.token;

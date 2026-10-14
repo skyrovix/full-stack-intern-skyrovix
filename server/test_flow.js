@@ -117,7 +117,7 @@ async function runTests() {
   const adminRes = await fetch(`${baseUrl}/api/admin/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'admin@skyrovix.com', password: 'Skyrovix@Admin2026' })
+    body: JSON.stringify({ email: 'hariharan@skyrovix.com', password: '123Sk_hari@2006' })
   });
   const adminData = await adminRes.json();
   console.log('✅ Admin login successful. Token acquired.');
