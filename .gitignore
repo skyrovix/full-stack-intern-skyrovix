@@ -22,6 +22,10 @@ client/dist/
 *.sqlite3
 !server/skyrovix.db
 server/skyrovix.db-journal
+server/skyrovix.db-shm
+server/skyrovix.db-wal
+*.db-shm
+*.db-wal
 
 # Logs & Debugging
 logs/

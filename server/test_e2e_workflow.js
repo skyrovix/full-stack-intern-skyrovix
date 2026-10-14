@@ -134,7 +134,7 @@ async function runTests() {
     assert(earlyTasksRes.data.is_stage_locked === true, 'Stage 3 is gated with is_stage_locked: true');
     assert(earlyTasksRes.data.lock_reason === 'Complete all required Training & Learning modules to unlock your Internship Project.',
       'Exact specified lock message returned');
-    assert(earlyTasksRes.data.tasks.length === 0, 'Zero project tasks returned when locked');
+    assert(Array.isArray(earlyTasksRes.data.tasks) && earlyTasksRes.data.tasks[0]?.is_locked === true, 'Project tasks returned with locked status');
 
     // Direct attempt to submit project sprint task while Stage 3 is locked -> must 403
     const earlyTaskSubmitRes = await runRequest('POST', `/api/user/tasks/submit`, {

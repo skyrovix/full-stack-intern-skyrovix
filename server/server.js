@@ -2474,6 +2474,7 @@ app.get('/api/user/tasks', requirePaidStudent, async (req, res) => {
 
       return {
         id: t.id,
+        order_num: t.order_num || (allTasks.indexOf(t) + 1),
         title: t.title,
         description: t.description,
         domain: t.domain,
@@ -2498,21 +2499,16 @@ app.get('/api/user/tasks', requirePaidStudent, async (req, res) => {
     const workflow = await getOrCreateInternWorkflow(student.id);
     const isStageLocked = Boolean(workflow?.stage3_status === 'LOCKED' || workflow?.is_manually_locked);
 
-    if (isStageLocked) {
-      return res.json({
-        success: true,
-        is_stage_locked: true,
-        lock_reason: 'Complete all required Training & Learning modules to unlock your Internship Project.',
-        tasks: []
-      });
-    }
-
     res.json({
       success: true,
-      is_stage_locked: false,
+      is_stage_locked: isStageLocked,
+      lock_reason: isStageLocked ? (workflow?.manual_lock_reason || 'Complete all required Training & Learning modules to unlock your Internship Project.') : '',
       duration: isSixMonths ? '6 Months' : '3 Months',
       total_tasks: taskLimit,
-      tasks
+      tasks: tasks.map(t => ({
+        ...t,
+        is_locked: isStageLocked
+      }))
     });
   } catch (e) {
     console.error('Error fetching tasks:', e);

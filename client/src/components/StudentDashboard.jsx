@@ -59,6 +59,7 @@ import yrLogo from '../assets/yr-tech logo.png';
 import { StudentGuideView } from './StudentGuideView';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 import { handleDownloadOfferLetter, handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
+import { allProjects } from '../data/projects';
 
 export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerPayment }) => {
   // Navigation & View State
@@ -238,7 +239,34 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
       setInternshipData(internship.internship || null);
 
       const tasks = await tasksRes.json();
-      setTasksList(tasks.tasks || []);
+      const rawTasks = tasks.tasks || [];
+      const isSixMonthsProg = String(profData?.profile?.duration || profData?.registration?.duration || internship?.internship?.duration || '').includes('6');
+      const maxCount = isSixMonthsProg ? 50 : 25;
+
+      if (rawTasks.length > 0) {
+        setTasksList(rawTasks.map((t, idx) => ({
+          ...t,
+          order_num: t.order_num || (idx + 1)
+        })));
+      } else {
+        // Fallback to static allProjects so the student NEVER sees "0 projects" or empty screen
+        const fallbackTasks = allProjects.slice(0, maxCount).map((p, idx) => ({
+          id: p.id,
+          order_num: idx + 1,
+          title: p.title,
+          description: p.whatToLearn || p.description,
+          domain: 'Full Stack Development',
+          difficulty: p.difficulty,
+          dueDate: p.month || (idx < 8 ? 'Month 1' : idx < 16 ? 'Month 2' : 'Month 3'),
+          keyFeatures: p.projectRequirements || [],
+          expectedOutcome: p.expectedOutcome || p.whatToLearn,
+          status: 'Pending',
+          submission: null,
+          is_locked: Boolean(tasks.is_stage_locked)
+        }));
+        setTasksList(fallbackTasks);
+      }
+
       if (tasks.is_stage_locked) {
         setTasksLockInfo({
           isLocked: true,
@@ -804,6 +832,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   const durationStr = isSixMonths ? '6 Months' : '3 Months';
 
   // Dynamic real-time task calculations based on live database submissions
+  const getTaskOrder = (t, idx) => t.order_num || (idx + 1);
   const totalTasksCount = tasksList.length || (isSixMonths ? 50 : 25);
   const completedTasksCount = tasksList.filter(t => t.status === 'Completed' || t.submission?.status === 'APPROVED').length;
   const submittedTasksCount = tasksList.filter(t => (t.status === 'Submitted' || t.submission?.status === 'SUBMITTED') && t.submission?.status !== 'APPROVED').length;
@@ -812,12 +841,12 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
     const isSubmitted = t.status === 'Submitted' || t.submission?.status === 'SUBMITTED';
     return !isCompleted && !isSubmitted;
   }).length;
-  const month1TasksCount = tasksList.filter(t => (t.order_num || 0) >= 1 && (t.order_num || 0) <= 8).length;
-  const month2TasksCount = tasksList.filter(t => (t.order_num || 0) >= 9 && (t.order_num || 0) <= 16).length;
-  const month3TasksCount = tasksList.filter(t => (t.order_num || 0) >= 17 && (t.order_num || 0) <= 25).length;
-  const month4TasksCount = tasksList.filter(t => (t.order_num || 0) >= 26 && (t.order_num || 0) <= 33).length;
-  const month5TasksCount = tasksList.filter(t => (t.order_num || 0) >= 34 && (t.order_num || 0) <= 41).length;
-  const month6TasksCount = tasksList.filter(t => (t.order_num || 0) >= 42 && (t.order_num || 0) <= 50).length;
+  const month1TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 1 && getTaskOrder(t, i) <= 8).length;
+  const month2TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 9 && getTaskOrder(t, i) <= 16).length;
+  const month3TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 17 && getTaskOrder(t, i) <= 25).length;
+  const month4TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 26 && getTaskOrder(t, i) <= 33).length;
+  const month5TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 34 && getTaskOrder(t, i) <= 41).length;
+  const month6TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 42 && getTaskOrder(t, i) <= 50).length;
   const progressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
   const unreadNotifsCount = notificationsList.filter(n => !n.is_read).length;
 
@@ -2104,8 +2133,8 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
               VIEW 5: PROJECTS / TASKS (50 SPRINT DELIVERABLES)
           ======================================================== */}
           {activeView === 'tasks' && (() => {
-            const filteredTasks = tasksList.filter(task => {
-              const order = task.order_num || 0;
+            const filteredTasks = tasksList.filter((task, idx) => {
+              const order = task.order_num || (idx + 1);
               if (taskMonthFilter === 'MONTH_1' && (order < 1 || order > 8)) return false;
               if (taskMonthFilter === 'MONTH_2' && (order < 9 || order > 16)) return false;
               if (taskMonthFilter === 'MONTH_3' && (order < 17 || order > 25)) return false;
@@ -2178,6 +2207,33 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                     <span className="text-xs font-black text-slate-800">{progressPct}%</span>
                   </div>
                 </div>
+
+                {/* Stage Lock Notice Banner */}
+                {tasksLockInfo.isLocked && (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/90 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-950 shadow-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center shrink-0 text-amber-700 shadow-2xs">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-200/80 text-amber-900">
+                            Stage 3 Gated • Project Preview Mode
+                          </span>
+                        </div>
+                        <p className="text-xs text-amber-800 font-medium mt-1 leading-relaxed">
+                          {tasksLockInfo.reason || 'Complete Stage 1 (Offer Letter & LinkedIn Post) and Stage 2 (5 Training Modules) to unlock project submission evaluations.'}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setActiveView('internship')}
+                      className="px-4 py-2 rounded-xl bg-[#07284a] hover:bg-[#0c3968] text-white font-extrabold text-xs shrink-0 transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Complete Stage 1 &amp; 2 →</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Month Filter Tabs */}
                 <div className="flex flex-wrap items-center gap-2 border-b border-slate-200/80 pb-3">
@@ -3505,14 +3561,29 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                 </div>
 
                 <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="submit"
-                    disabled={submittingTask}
-                    className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition shadow-sm text-xs flex items-center justify-center gap-2"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>{submittingTask ? 'Submitting Deliverable...' : (selectedTask.submission ? 'Update Submission' : 'Submit Project Deliverable')}</span>
-                  </button>
+                  {tasksLockInfo.isLocked ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTaskModal(false);
+                        setActiveView('internship');
+                        showToast('Please complete Stage 1 (LinkedIn) & Stage 2 (Training) first to submit projects.');
+                      }}
+                      className="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl transition shadow-sm text-xs flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Lock className="w-3.5 h-3.5" />
+                      <span>Locked: Complete Stage 1 &amp; 2 to Submit</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={submittingTask}
+                      className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl transition shadow-sm text-xs flex items-center justify-center gap-2"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{submittingTask ? 'Submitting Deliverable...' : (selectedTask.submission ? 'Update Submission' : 'Submit Project Deliverable')}</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowTaskModal(false)}
