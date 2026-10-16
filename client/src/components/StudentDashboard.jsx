@@ -56,8 +56,6 @@ import maheshSig from '../assets/mahesh sig.jpeg';
 import msmeLogo from '../assets/msme.png';
 import vinixLogo from '../assets/vinix.png';
 import yrLogo from '../assets/yr-tech logo.png';
-import defaultInternAvatar from '../assets/intern-avatar.jpg';
-import hariAvatar from '../assets/hari-avatar.png';
 import { StudentGuideView } from './StudentGuideView';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 import { handleDownloadOfferLetter, handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
@@ -443,9 +441,13 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
       const sId = profileData?.profile?.id || studentId;
       try {
+        const token = localStorage.getItem('skyrovix_token');
         const res = await fetch('/api/user/profile', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          },
           body: JSON.stringify({
             studentId: sId,
             ...profileForm,
@@ -475,9 +477,13 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
     const sId = profileData?.profile?.id || studentId;
     try {
+      const token = localStorage.getItem('skyrovix_token');
       const res = await fetch('/api/user/profile', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           studentId: sId,
           ...profileForm,
@@ -869,28 +875,30 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
   // Helper for dynamic initials avatar
   const getInitials = (name) => {
-    if (!name) return 'HS';
+    if (!name) return 'SK';
     const clean = name.trim();
-    if (!clean) return 'HS';
+    if (!clean) return 'SK';
     const parts = clean.split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
-  // Helper to render user avatar or initials medallion
-  const renderAvatar = (sizeClasses = "w-full h-full", textClasses = "text-base", extraClasses = "") => {
-    const avatarUrl = profileData?.profile?.avatar_url || profileForm?.avatar_url || (profile.full_name === 'Hariharan S' ? hariAvatar : defaultInternAvatar);
+  const hasUploadedPhoto = Boolean(profileData?.profile?.avatar_url || profileForm?.avatar_url);
+
+  // Helper to render user avatar: ONLY render photo if user uploaded one, otherwise render initials medallion
+  const renderAvatar = (sizeClasses = "w-full h-full", textClasses = "text-base", roundedClass = "rounded-full", extraClasses = "") => {
+    const avatarUrl = profileData?.profile?.avatar_url || profileForm?.avatar_url || null;
     if (avatarUrl) {
       return (
         <img 
           src={avatarUrl} 
           alt={internName} 
-          className={`w-full h-full object-cover rounded-full ${extraClasses}`} 
+          className={`w-full h-full object-cover ${roundedClass} ${extraClasses}`} 
         />
       );
     }
     return (
-      <div className={`w-full h-full rounded-full bg-gradient-to-tr from-[#0a1e3f] via-[#163a70] to-[#0284c7] text-white flex items-center justify-center font-black tracking-tight select-none shadow-inner ${textClasses} ${extraClasses}`}>
+      <div className={`w-full h-full ${roundedClass} bg-gradient-to-tr from-[#0a1e3f] via-[#163a70] to-[#0284c7] text-white flex items-center justify-center font-black tracking-tight select-none shadow-inner ${textClasses} ${extraClasses}`}>
         {getInitials(internName)}
       </div>
     );
@@ -968,6 +976,15 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           <span>{toastMessage}</span>
         </div>
       )}
+
+      {/* Global Hidden file input for uploading profile photo directly */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
 
       {/* ========================================================
           1. LEFT SIDEBAR NAVIGATION (DESKTOP & MOBILE DRAWER)
@@ -1295,15 +1312,21 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                     {/* Left Column: Avatar, Intern Name, Badges & Metadata */}
                     <div className="col-span-7 xl:col-span-8 flex items-center gap-5">
                       {/* Large Avatar with glowing border & verified check */}
-                      <div className="relative shrink-0">
-                        <div className="w-20 h-20 rounded-2xl border-2 border-white/20 p-1 overflow-hidden bg-slate-800 shadow-xl shadow-cyan-950/40">
-                          {renderAvatar("w-full h-full", "text-2xl")}
+                      <div className="relative shrink-0 group">
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-20 h-20 rounded-2xl border-2 border-white/20 p-1 overflow-hidden bg-slate-800 shadow-xl shadow-cyan-950/40 cursor-pointer relative group transition hover:border-cyan-400/60"
+                          title={hasUploadedPhoto ? "Click to change profile photo" : "Click to upload profile photo"}
+                        >
+                          {renderAvatar("w-full h-full", "text-2xl", "rounded-xl")}
+                          <div className="absolute inset-0 bg-slate-900/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[9px] font-bold rounded-xl gap-0.5 pointer-events-none">
+                            <Camera className="w-4 h-4 text-cyan-300" />
+                            <span>{hasUploadedPhoto ? 'Change' : 'Upload'}</span>
+                          </div>
                         </div>
-                        {profile.full_name !== 'Hariharan S' && (
-                          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00c9a7] border-2 border-[#0f2d4a] flex items-center justify-center text-white shadow-md">
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
-                          </span>
-                        )}
+                        <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00c9a7] border-2 border-[#0f2d4a] flex items-center justify-center text-white shadow-md pointer-events-none" title="Verified Active Intern">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </span>
                       </div>
 
                       {/* Intern Details & Badges */}
@@ -1534,14 +1557,16 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                     {/* Left: Avatar + Details */}
                     <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                       <div className="relative shrink-0">
-                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white/20 p-0.5 overflow-hidden bg-slate-800 shadow-md">
-                          {renderAvatar("w-full h-full", "text-xl")}
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
+                          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white/20 p-0.5 overflow-hidden bg-slate-800 shadow-md cursor-pointer relative active:scale-95 transition"
+                          title={hasUploadedPhoto ? "Change profile photo" : "Upload profile photo"}
+                        >
+                          {renderAvatar("w-full h-full", "text-xl", "rounded-full")}
                         </div>
-                        {profile.full_name !== 'Hariharan S' && (
-                          <span className="absolute bottom-0 right-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#00c9a7] border-2 border-[#0a1e38] flex items-center justify-center text-white shadow-xs">
-                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
-                          </span>
-                        )}
+                        <span className="absolute bottom-0 right-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#00c9a7] border-2 border-[#0a1e38] flex items-center justify-center text-white shadow-xs pointer-events-none" title="Verified Active Intern">
+                          <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
+                        </span>
                       </div>
 
                       <div className="min-w-0 space-y-0.5 sm:space-y-1">
@@ -2023,13 +2048,6 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
                       {/* Photo Upload and Remove Actions */}
                       <div className="flex items-center justify-center sm:justify-end gap-2 pt-1 sm:pt-0">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="hidden"
-                        />
                         <button
                           type="button"
                           onClick={() => fileInputRef.current?.click()}
