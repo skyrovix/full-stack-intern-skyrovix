@@ -48,7 +48,18 @@ import {
   Sparkles,
   Copy,
   Sliders,
-  Trash2
+  Trash2,
+  Code2,
+  BookOpen,
+  Globe,
+  MessageSquare,
+  ChevronDown,
+  Power,
+  Mail,
+  Phone,
+  MapPin,
+  Building,
+  GraduationCap
 } from 'lucide-react';
 import navLogo from '../assets/top nav bar logo.png';
 import { AdminWorkflowManagement } from './workflow/AdminWorkflowManagement';
@@ -99,6 +110,13 @@ export const AdminDashboard = ({ onLogout }) => {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+
+  // Tasks Management Filters & Review State
+  const [taskTypeFilter, setTaskTypeFilter] = useState('ALL'); // 'ALL' | 'PROJECT_TASK' | 'TRAINING_MODULE'
+  const [taskStatusFilter, setTaskStatusFilter] = useState('ALL'); // 'ALL' | 'SUBMITTED' | 'APPROVED' | 'REVISION'
+  const [taskSearchQuery, setTaskSearchQuery] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [selectedNotesDetail, setSelectedNotesDetail] = useState(null);
 
   // Settings Edit inputs
   const [whatsappUrlInput, setWhatsappUrlInput] = useState('');
@@ -356,6 +374,7 @@ export const AdminDashboard = ({ onLogout }) => {
   const handleSubmitReview = async (e) => {
     e.preventDefault();
     if (!selectedSubmissionToReview) return;
+    setReviewLoading(true);
 
     try {
       const res = await fetch(`/api/admin/tasks/submissions/${selectedSubmissionToReview.id}/review`, {
@@ -367,14 +386,17 @@ export const AdminDashboard = ({ onLogout }) => {
         body: JSON.stringify(reviewForm)
       });
       const data = await res.json();
+      setReviewLoading(false);
+
       if (res.ok) {
-        showToast(`Submission evaluated: ${reviewForm.status} (Grade: ${reviewForm.grade})`);
+        showToast(data.message || `Submission evaluated: ${reviewForm.status} (Grade: ${reviewForm.grade})`);
         setSelectedSubmissionToReview(null);
         fetchAllAdminData();
       } else {
         showToast(data.error || 'Failed to submit review');
       }
     } catch (err) {
+      setReviewLoading(false);
       showToast('Error submitting code review');
     }
   };
@@ -1286,47 +1308,82 @@ export const AdminDashboard = ({ onLogout }) => {
               </div>
 
               {/* Statistics Key Metrics Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div 
+                  onClick={() => setActiveView('users')}
+                  className="bg-white hover:border-sky-300 cursor-pointer rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition group"
+                >
                   <div>
                     <div className="text-xs font-semibold text-slate-500">Total Applicants</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{stats?.total_applicants || usersList.length}</div>
                     <div className="text-[10px] text-sky-600 font-bold mt-0.5">Registered Students</div>
                   </div>
-                  <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-sky-50 group-hover:bg-sky-100 text-sky-600 flex items-center justify-center transition-colors">
                     <Users className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+                <div 
+                  onClick={() => setActiveView('users')}
+                  className="bg-white hover:border-emerald-300 cursor-pointer rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition group"
+                >
                   <div>
                     <div className="text-xs font-semibold text-slate-500">Confirmed Enrolled</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{stats?.paid_registrations || 0}</div>
                     <div className="text-[10px] text-emerald-600 font-bold mt-0.5">Paid &amp; Active</div>
                   </div>
-                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+                <div 
+                  onClick={() => setActiveView('payments')}
+                  className="bg-white hover:border-amber-300 cursor-pointer rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition group"
+                >
                   <div>
                     <div className="text-xs font-semibold text-slate-500">Total Gross Revenue</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">₹{stats?.total_collection || 0}.00</div>
                     <div className="text-[10px] text-amber-600 font-bold mt-0.5">Cashfree + Manual</div>
                   </div>
-                  <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-amber-50 group-hover:bg-amber-100 text-amber-600 flex items-center justify-center transition-colors">
                     <CreditCard className="w-5 h-5" />
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between">
+                <div 
+                  onClick={() => setActiveView('tasks')}
+                  className="bg-white hover:border-indigo-300 cursor-pointer rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition group relative overflow-hidden"
+                >
+                  <div>
+                    <div className="text-xs font-semibold text-slate-500">Deliverables Submitted</div>
+                    <div className="text-2xl font-black text-slate-900 mt-1">{submissionsList.length}</div>
+                    <div className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                      {submissionsList.filter(s => s.status === 'SUBMITTED' || s.status === 'PENDING').length > 0 ? (
+                        <>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
+                          <span className="text-amber-700 font-extrabold">{submissionsList.filter(s => s.status === 'SUBMITTED' || s.status === 'PENDING').length} Pending Review</span>
+                        </>
+                      ) : (
+                        <span className="text-indigo-600">All Deliverables Evaluated</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="w-11 h-11 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-600 flex items-center justify-center transition-colors">
+                    <CheckSquare className="w-5 h-5" />
+                  </div>
+                </div>
+
+                <div 
+                  onClick={() => setActiveView('certificates')}
+                  className="bg-white hover:border-purple-300 cursor-pointer rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition group"
+                >
                   <div>
                     <div className="text-xs font-semibold text-slate-500">Credentials Issued</div>
                     <div className="text-2xl font-black text-slate-900 mt-1">{certificatesList.length}</div>
                     <div className="text-[10px] text-purple-600 font-bold mt-0.5">{offerLettersList.length} Offer Letters</div>
                   </div>
-                  <div className="w-11 h-11 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-2xl bg-purple-50 group-hover:bg-purple-100 text-purple-600 flex items-center justify-center transition-colors">
                     <Award className="w-5 h-5" />
                   </div>
                 </div>
@@ -1349,7 +1406,7 @@ export const AdminDashboard = ({ onLogout }) => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 pt-1">
                   <button
                     onClick={() => {
                       const firstUnpaid = usersList.find(u => u.payment_status !== 'PAID') || usersList[0];
@@ -1359,70 +1416,94 @@ export const AdminDashboard = ({ onLogout }) => {
                         showToast('All registered students are already marked paid!');
                       }
                     }}
-                    className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group"
+                    className="p-3 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <DollarSign className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <DollarSign className="w-3.5 h-3.5" />
                     </div>
-                    <div className="font-bold text-xs text-white">Manual Pay</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Confirm &amp; Enroll</div>
+                    <div className="font-bold text-xs text-white truncate">Manual Pay</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Confirm &amp; Enroll</div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveView('tasks')}
+                    className="p-3 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/50 rounded-2xl text-left transition group relative overflow-hidden"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <CheckSquare className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="font-bold text-xs text-white truncate">Review Tasks</div>
+                    <div className="text-[10px] text-amber-400 font-semibold mt-0.5 truncate">
+                      {submissionsList.filter(s => s.status === 'SUBMITTED' || s.status === 'PENDING').length} Pending
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveView('workflow')}
+                    className="p-3 bg-slate-800/90 hover:bg-sky-600/30 border border-slate-700 hover:border-sky-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-sky-500/20 text-sky-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <GitMerge className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="font-bold text-xs text-white truncate">Workflow</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">3 Stages</div>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenerateOLModal(true)}
+                    className="p-3 bg-slate-800/90 hover:bg-amber-600/30 border border-slate-700 hover:border-amber-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <FileCheck2 className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="font-bold text-xs text-white truncate">Issue Offer</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Generate Letter</div>
+                  </button>
+
+                  <button
+                    onClick={() => setShowGenerateCertModal(true)}
+                    className="p-3 bg-slate-800/90 hover:bg-purple-600/30 border border-slate-700 hover:border-purple-500/50 rounded-2xl text-left transition group"
+                  >
+                    <div className="w-7 h-7 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <Award className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="font-bold text-xs text-white truncate">Issue Cert</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Credential</div>
                   </button>
 
                   <button
                     onClick={handleTriggerDbBackup}
                     disabled={cloudSyncLoading}
-                    className="p-3.5 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group disabled:opacity-50"
+                    className="p-3 bg-slate-800/90 hover:bg-emerald-600/30 border border-slate-700 hover:border-emerald-500/50 rounded-2xl text-left transition group disabled:opacity-50"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <Database className={`w-4 h-4 ${cloudSyncLoading ? 'animate-pulse' : ''}`} />
+                    <div className="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <Database className={`w-3.5 h-3.5 ${cloudSyncLoading ? 'animate-pulse' : ''}`} />
                     </div>
-                    <div className="font-bold text-xs text-white">Verify SQL</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Inspect Records</div>
+                    <div className="font-bold text-xs text-white truncate">Verify DB</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Inspect SQL</div>
                   </button>
 
                   <button
                     onClick={handleTriggerDbVacuum}
                     disabled={cloudSyncLoading}
-                    className="p-3.5 bg-slate-800/90 hover:bg-indigo-600/30 border border-slate-700 hover:border-indigo-500/50 rounded-2xl text-left transition group disabled:opacity-50"
+                    className="p-3 bg-slate-800/90 hover:bg-cyan-600/30 border border-slate-700 hover:border-cyan-500/50 rounded-2xl text-left transition group disabled:opacity-50"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <RefreshCw className={`w-4 h-4 ${cloudSyncLoading ? 'animate-spin' : ''}`} />
+                    <div className="w-7 h-7 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <RefreshCw className={`w-3.5 h-3.5 ${cloudSyncLoading ? 'animate-spin' : ''}`} />
                     </div>
-                    <div className="font-bold text-xs text-white">Optimize DB</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Vacuum &amp; Defrag</div>
-                  </button>
-
-                  <button
-                    onClick={() => setShowGenerateOLModal(true)}
-                    className="p-3.5 bg-slate-800/90 hover:bg-amber-600/30 border border-slate-700 hover:border-amber-500/50 rounded-2xl text-left transition group"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <FileCheck2 className="w-4 h-4" />
-                    </div>
-                    <div className="font-bold text-xs text-white">Issue Offer</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Generate Letter</div>
-                  </button>
-
-                  <button
-                    onClick={() => setShowGenerateCertModal(true)}
-                    className="p-3.5 bg-slate-800/90 hover:bg-purple-600/30 border border-slate-700 hover:border-purple-500/50 rounded-2xl text-left transition group"
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <Award className="w-4 h-4" />
-                    </div>
-                    <div className="font-bold text-xs text-white">Issue Certificate</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Generate Credential</div>
+                    <div className="font-bold text-xs text-white truncate">Optimize DB</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Vacuum &amp; Defrag</div>
                   </button>
 
                   <button
                     onClick={() => setShowBroadcastModal(true)}
-                    className="p-3.5 bg-slate-800/90 hover:bg-rose-600/30 border border-slate-700 hover:border-rose-500/50 rounded-2xl text-left transition group"
+                    className="p-3 bg-slate-800/90 hover:bg-rose-600/30 border border-slate-700 hover:border-rose-500/50 rounded-2xl text-left transition group"
                   >
-                    <div className="w-8 h-8 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
-                      <Bell className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center mb-1.5 group-hover:scale-110 transition-transform">
+                      <Bell className="w-3.5 h-3.5" />
                     </div>
-                    <div className="font-bold text-xs text-white">Broadcast</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">Send Global Notice</div>
+                    <div className="font-bold text-xs text-white truncate">Broadcast</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">Notice Alert</div>
                   </button>
                 </div>
               </div>
@@ -1658,15 +1739,15 @@ export const AdminDashboard = ({ onLogout }) => {
               {/* Users Table */}
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
+                  <table className="w-full text-left text-xs min-w-[980px]">
+                    <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">Student &amp; ID</th>
-                        <th className="py-3.5 px-6">Contact Details</th>
-                        <th className="py-3.5 px-6">Academic Background</th>
-                        <th className="py-3.5 px-6">Payment / Status</th>
-                        <th className="py-3.5 px-6">Access</th>
-                        <th className="py-3.5 px-6 text-right">Functional Controls</th>
+                        <th className="py-3.5 px-6 min-w-[220px]">Student &amp; ID</th>
+                        <th className="py-3.5 px-6 min-w-[190px]">Contact Details</th>
+                        <th className="py-3.5 px-6 min-w-[190px]">Academic Background</th>
+                        <th className="py-3.5 px-6 min-w-[140px]">Payment / Status</th>
+                        <th className="py-3.5 px-6 min-w-[100px]">Access</th>
+                        <th className="py-3.5 px-6 text-right whitespace-nowrap min-w-[240px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1686,29 +1767,38 @@ export const AdminDashboard = ({ onLogout }) => {
                           return true;
                         })
                         .map(u => (
-                          <tr key={u.id} className="hover:bg-slate-50/60 transition">
+                          <tr key={u.id} className="hover:bg-slate-50/70 transition">
                             <td className="py-4 px-6">
-                              <div className="font-bold text-slate-900">{u.full_name}</div>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <span className="font-mono text-[10px] text-slate-400 truncate max-w-[130px]">{u.id}</span>
-                                <button
-                                  onClick={() => copyToClipboard(u.id, `id_${u.id}`)}
-                                  className="text-slate-400 hover:text-slate-700"
-                                  title="Copy Student ID"
-                                >
-                                  <Copy className="w-3 h-3" />
-                                </button>
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                  {(u.full_name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-bold text-slate-900 truncate">{u.full_name}</div>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200/60 truncate max-w-[120px]">
+                                      {u.id}
+                                    </span>
+                                    <button
+                                      onClick={() => copyToClipboard(u.id, `id_${u.id}`)}
+                                      className="text-slate-400 hover:text-sky-600 transition"
+                                      title="Copy Student ID"
+                                    >
+                                      <Copy className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </div>
                               </div>
                             </td>
                             <td className="py-4 px-6">
-                              <div className="text-slate-800 font-semibold">{u.email}</div>
-                              <div className="text-[11px] text-slate-500 font-mono">{u.mobile || '—'}</div>
-                              {u.city && <div className="text-[10px] text-slate-400">{u.city}{u.state ? `, ${u.state}` : ''}</div>}
+                              <div className="text-slate-800 font-semibold truncate max-w-[180px]">{u.email}</div>
+                              <div className="text-[11px] text-slate-500 font-mono mt-0.5">{u.mobile || '—'}</div>
+                              {u.city && <div className="text-[10px] text-slate-400 truncate max-w-[180px]">{u.city}{u.state ? `, ${u.state}` : ''}</div>}
                             </td>
                             <td className="py-4 px-6">
                               <div className="text-slate-800 font-semibold max-w-[180px] truncate">{u.college || 'Engineering'}</div>
                               <div className="text-[11px] text-slate-500">{u.department || 'Full Stack'} • {u.year_of_study || '3rd Year'}</div>
-                              <span className="inline-block mt-0.5 text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
+                              <span className="inline-block mt-1 text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200/60">
                                 {u.skill_level || 'Intermediate'}
                               </span>
                             </td>
@@ -1723,67 +1813,92 @@ export const AdminDashboard = ({ onLogout }) => {
                               </span>
                             </td>
                             <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${u.is_active !== 0 ? 'bg-sky-100 text-sky-800' : 'bg-rose-100 text-rose-800'}`}>
-                                {u.is_active !== 0 ? 'Active' : 'Deactivated'}
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] inline-flex items-center gap-1.5 ${
+                                u.is_active !== 0 ? 'bg-sky-50 text-sky-700 border border-sky-200' : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.is_active !== 0 ? 'bg-sky-500' : 'bg-rose-500'}`}></span>
+                                <span>{u.is_active !== 0 ? 'Active' : 'Deactivated'}</span>
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-right">
-                              <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                <button
-                                  onClick={async () => {
-                                    const res = await fetch(`/api/admin/users/${u.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
-                                    const d = await res.json();
-                                    setSelectedUserDetail(d);
-                                  }}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
-                                  title="View Full Profile Dossier"
-                                >
-                                  View
-                                </button>
-
-                                <button
-                                  onClick={() => handleOpenEditStudent(u)}
-                                  className="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition flex items-center gap-1"
-                                  title="Edit Student Details"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                  <span>Edit</span>
-                                </button>
-
-                                {u.payment_status !== 'PAID' && (
+                            <td className="py-4 px-6 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                {/* Primary Action: Confirm Pay for Unpaid, View Dossier for Paid */}
+                                {u.payment_status !== 'PAID' ? (
                                   <button
                                     onClick={() => handleOpenManualPayment(u)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition flex items-center gap-1 shadow-2xs"
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-2xs transition hover:scale-[1.02]"
                                     title="Manual Confirm & Enroll"
                                   >
-                                    <DollarSign className="w-3 h-3" />
+                                    <DollarSign className="w-3.5 h-3.5" />
                                     <span>Confirm Pay</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={async () => {
+                                      const res = await fetch(`/api/admin/users/${u.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+                                      const d = await res.json();
+                                      setSelectedUserDetail(d);
+                                    }}
+                                    className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-2xs transition hover:scale-[1.02]"
+                                    title="View Full Profile Dossier"
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                    <span>Dossier</span>
                                   </button>
                                 )}
 
-                                <button
-                                  onClick={() => handleOpenResetPassword(u)}
-                                  className="p-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold rounded-lg transition"
-                                  title="Reset Student Password"
-                                >
-                                  <Key className="w-3.5 h-3.5" />
-                                </button>
+                                {/* Secondary Action Icon Bar */}
+                                <div className="flex items-center gap-0.5 bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/80">
+                                  {u.payment_status !== 'PAID' && (
+                                    <button
+                                      onClick={async () => {
+                                        const res = await fetch(`/api/admin/users/${u.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+                                        const d = await res.json();
+                                        setSelectedUserDetail(d);
+                                      }}
+                                      className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition"
+                                      title="View Profile Dossier"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
 
-                                <button
-                                  onClick={() => handleToggleUserStatus(u)}
-                                  className={`px-2 py-1 font-bold rounded-lg transition text-[11px] ${u.is_active !== 0 ? 'bg-rose-50 hover:bg-rose-100 text-rose-600' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-600'}`}
-                                  title={u.is_active !== 0 ? 'Deactivate student dashboard access' : 'Activate access'}
-                                >
-                                  {u.is_active !== 0 ? 'Deactivate' : 'Activate'}
-                                </button>
+                                  <button
+                                    onClick={() => handleOpenEditStudent(u)}
+                                    className="p-1.5 text-sky-600 hover:text-sky-800 hover:bg-white rounded-lg transition"
+                                    title="Edit Student Details"
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5" />
+                                  </button>
 
-                                <button
-                                  onClick={() => handleDeleteUser(u)}
-                                  className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold rounded-lg transition border border-rose-200"
-                                  title="Permanently Delete Student Account"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                  <button
+                                    onClick={() => handleOpenResetPassword(u)}
+                                    className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-white rounded-lg transition"
+                                    title="Reset Student Password"
+                                  >
+                                    <Key className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleToggleUserStatus(u)}
+                                    className={`p-1.5 rounded-lg transition ${
+                                      u.is_active !== 0 
+                                        ? 'text-slate-400 hover:text-rose-600 hover:bg-white' 
+                                        : 'text-emerald-600 hover:bg-white'
+                                    }`}
+                                    title={u.is_active !== 0 ? 'Deactivate Account' : 'Activate Account'}
+                                  >
+                                    <Power className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-white rounded-lg transition"
+                                    title="Permanently Delete Account"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </div>
                             </td>
                           </tr>
@@ -1809,15 +1924,15 @@ export const AdminDashboard = ({ onLogout }) => {
 
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
+                  <table className="w-full text-left text-xs min-w-[880px]">
+                    <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">App ID</th>
-                        <th className="py-3.5 px-6">Applicant Name</th>
-                        <th className="py-3.5 px-6">Email &amp; Mobile</th>
-                        <th className="py-3.5 px-6">Payment</th>
-                        <th className="py-3.5 px-6">Registration Stage</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
+                        <th className="py-3.5 px-6 min-w-[140px]">App ID</th>
+                        <th className="py-3.5 px-6 min-w-[200px]">Applicant Name</th>
+                        <th className="py-3.5 px-6 min-w-[200px]">Email &amp; Mobile</th>
+                        <th className="py-3.5 px-6 min-w-[130px]">Payment</th>
+                        <th className="py-3.5 px-6 min-w-[140px]">Registration Stage</th>
+                        <th className="py-3.5 px-6 text-right whitespace-nowrap min-w-[200px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1826,60 +1941,85 @@ export const AdminDashboard = ({ onLogout }) => {
                         const isPaid = app.payment_status === 'PAID' || linkedUser?.payment_status === 'PAID';
 
                         return (
-                          <tr key={app.application_id} className="hover:bg-slate-50/60 transition">
+                          <tr key={app.application_id} className="hover:bg-slate-50/70 transition">
                             <td className="py-4 px-6 font-mono font-bold text-sky-700">
-                              {app.application_id}
+                              <div className="flex items-center gap-1.5">
+                                <span className="bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200/60 font-mono text-[11px]">
+                                  {app.application_id}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(app.application_id, `app_${app.application_id}`)}
+                                  className="text-slate-400 hover:text-sky-600 transition"
+                                  title="Copy Application ID"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                </button>
+                              </div>
                             </td>
-                            <td className="py-4 px-6 font-bold text-slate-900">
-                              {app.full_name}
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-sky-500 text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs">
+                                  {(app.full_name || 'A').charAt(0).toUpperCase()}
+                                </div>
+                                <div className="font-bold text-slate-900 truncate">{app.full_name}</div>
+                              </div>
                             </td>
                             <td className="py-4 px-6 text-slate-600">
-                              <div>{app.email}</div>
-                              <div className="text-[11px] text-slate-400">{app.mobile}</div>
+                              <div className="font-semibold text-slate-800">{app.email}</div>
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">{app.mobile || '—'}</div>
                             </td>
                             <td className="py-4 px-6">
-                              <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
-                                isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                              <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] inline-flex items-center gap-1 ${
+                                isPaid 
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
                               }`}>
-                                {isPaid ? `₹${app.amount || 200} PAID` : 'PENDING'}
+                                {isPaid ? <CheckCircle2 className="w-3 h-3 text-emerald-600" /> : <Clock className="w-3 h-3 text-amber-600" />}
+                                <span>{isPaid ? `₹${app.amount || 200} PAID` : 'PENDING'}</span>
                               </span>
                             </td>
                             <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                                app.registration_status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] inline-flex items-center gap-1 ${
+                                app.registration_status === 'CONFIRMED' 
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                  : 'bg-sky-50 text-sky-700 border border-sky-200'
                               }`}>
-                                {app.registration_status}
+                                <span className={`w-1.5 h-1.5 rounded-full ${app.registration_status === 'CONFIRMED' ? 'bg-emerald-500' : 'bg-sky-500'}`}></span>
+                                <span>{app.registration_status}</span>
                               </span>
                             </td>
-                            <td className="py-4 px-6 text-right space-x-1.5">
-                              {!isPaid && linkedUser && (
+                            <td className="py-4 px-6 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                {!isPaid && linkedUser && (
+                                  <button
+                                    onClick={() => handleOpenManualPayment(linkedUser)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-2xs transition"
+                                    title="Mark Paid and Confirm"
+                                  >
+                                    <DollarSign className="w-3.5 h-3.5" />
+                                    <span>Mark Paid</span>
+                                  </button>
+                                )}
                                 <button
-                                  onClick={() => handleOpenManualPayment(linkedUser)}
-                                  className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs"
-                                  title="Mark Paid and Confirm"
+                                  onClick={() => handleUpdateApplicationStatus(app.application_id, 'CONFIRMED')}
+                                  className="px-3 py-1.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition shadow-2xs"
                                 >
-                                  Mark Paid
+                                  Approve
                                 </button>
-                              )}
-                              <button
-                                onClick={() => handleUpdateApplicationStatus(app.application_id, 'CONFIRMED')}
-                                className="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg text-xs"
-                              >
-                                Approve
-                              </button>
-                              <button
-                                onClick={() => handleUpdateApplicationStatus(app.application_id, 'REJECTED')}
-                                className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg text-xs"
-                              >
-                                Reject
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(linkedUser || { id: app.student_id || app.user_id, full_name: app.full_name, email: app.email })}
-                                className="p-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 font-bold rounded-lg transition inline-flex items-center align-middle border border-rose-200"
-                                title="Permanently Delete Account / Application"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                                <button
+                                  onClick={() => handleUpdateApplicationStatus(app.application_id, 'REJECTED')}
+                                  className="px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 font-bold rounded-xl text-xs transition"
+                                >
+                                  Reject
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteUser(linkedUser || { id: app.student_id || app.user_id, full_name: app.full_name, email: app.email })}
+                                  className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition border border-transparent hover:border-rose-200"
+                                  title="Permanently Delete Account / Application"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1963,107 +2103,461 @@ export const AdminDashboard = ({ onLogout }) => {
           {/* ========================================================
               VIEW 5: TASK MANAGEMENT & REVIEWS (SECTION 21)
           ======================================================== */}
-          {activeView === 'tasks' && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-xl font-extrabold text-slate-900">Task Management &amp; Mentor Code Evaluations</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">Review public GitHub code repositories, grade implementations, and provide remarks</p>
-                </div>
-              </div>
+          {activeView === 'tasks' && (() => {
+            const totalCount = submissionsList.length;
+            const pendingCount = submissionsList.filter(s => s.status === 'SUBMITTED' || s.status === 'PENDING').length;
+            const approvedCount = submissionsList.filter(s => s.status === 'APPROVED').length;
+            const revisionCount = submissionsList.filter(s => s.status === 'REVISION_REQUIRED' || s.status === 'REVISION_REQUESTED').length;
+            const projectCount = submissionsList.filter(s => s.submission_type === 'PROJECT_TASK').length;
+            const trainingCount = submissionsList.filter(s => s.submission_type === 'TRAINING_MODULE').length;
 
-              {/* Submissions Table */}
-              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-                <div className="p-4 border-b border-slate-100 font-bold text-xs text-slate-700">
-                  Student Deliverables Submitted for Review ({submissionsList.length})
+            const filteredSubmissions = submissionsList.filter(sub => {
+              if (taskTypeFilter === 'PROJECT_TASK' && sub.submission_type !== 'PROJECT_TASK') return false;
+              if (taskTypeFilter === 'TRAINING_MODULE' && sub.submission_type !== 'TRAINING_MODULE') return false;
+
+              if (taskStatusFilter === 'SUBMITTED') {
+                if (sub.status !== 'SUBMITTED' && sub.status !== 'PENDING') return false;
+              } else if (taskStatusFilter === 'APPROVED') {
+                if (sub.status !== 'APPROVED') return false;
+              } else if (taskStatusFilter === 'REVISION') {
+                if (sub.status !== 'REVISION_REQUIRED' && sub.status !== 'REVISION_REQUESTED') return false;
+              }
+
+              if (taskSearchQuery.trim()) {
+                const q = taskSearchQuery.toLowerCase().trim();
+                const matchName = (sub.student_name || '').toLowerCase().includes(q);
+                const matchEmail = (sub.student_email || '').toLowerCase().includes(q);
+                const matchTitle = (sub.project_title || '').toLowerCase().includes(q);
+                const matchCollege = (sub.college || '').toLowerCase().includes(q);
+                const matchRepo = (sub.github_repo_url || '').toLowerCase().includes(q);
+                const matchStudentId = (sub.student_id || '').toLowerCase().includes(q);
+                if (!matchName && !matchEmail && !matchTitle && !matchCollege && !matchRepo && !matchStudentId) {
+                  return false;
+                }
+              }
+
+              return true;
+            });
+
+            return (
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-extrabold text-slate-900">Task Deliverables &amp; Code Evaluations</h2>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        {totalCount} Total
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Review GitHub source repositories, test live preview deployments, award grades, and provide mentor feedback.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setActiveView('workflow')}
+                      className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl flex items-center gap-1.5 transition"
+                    >
+                      <GitMerge className="w-3.5 h-3.5 text-sky-600" />
+                      <span>Internship Workflow</span>
+                    </button>
+                    <button
+                      onClick={fetchAllAdminData}
+                      disabled={loadingData}
+                      className="px-3.5 py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 shadow-xs transition disabled:opacity-50"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${loadingData ? 'animate-spin' : ''}`} />
+                      <span>Sync Submissions</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
-                      <tr>
-                        <th className="py-3.5 px-6">Task Title</th>
-                        <th className="py-3.5 px-6">Student Name</th>
-                        <th className="py-3.5 px-6">GitHub Link</th>
-                        <th className="py-3.5 px-6">Live URL</th>
-                        <th className="py-3.5 px-6">Review Status</th>
-                        <th className="py-3.5 px-6">Grade</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {submissionsList.length === 0 ? (
-                        <tr><td colSpan={7} className="text-center py-6 text-slate-400">No student submissions recorded yet.</td></tr>
-                      ) : (
-                        submissionsList.map(sub => (
-                          <tr key={sub.id} className="hover:bg-slate-50/60 transition">
-                            <td className="py-4 px-6 font-bold text-slate-900">
-                              {sub.project_title}
-                            </td>
-                            <td className="py-4 px-6">
-                              <div className="font-semibold text-slate-800">{sub.student_name}</div>
-                              <div className="text-[10px] text-slate-400">{sub.student_email}</div>
-                            </td>
-                            <td className="py-4 px-6">
-                              <a
-                                href={sub.github_repo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sky-600 hover:underline flex items-center gap-1 font-mono text-[11px]"
-                              >
-                                <span>Repo</span>
-                                <ExternalLink className="w-3 h-3" />
-                              </a>
-                            </td>
-                            <td className="py-4 px-6">
-                              {sub.live_deployment_url ? (
-                                <a
-                                  href={sub.live_deployment_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-emerald-600 hover:underline flex items-center gap-1 font-mono text-[11px]"
-                                >
-                                  <span>Live</span>
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
-                            </td>
-                            <td className="py-4 px-6">
-                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                                sub.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {sub.status}
-                              </span>
-                            </td>
-                            <td className="py-4 px-6 font-bold font-mono">
-                              {sub.grade || '—'}
-                            </td>
-                            <td className="py-4 px-6 text-right">
-                              <button
-                                onClick={() => {
-                                  setSelectedSubmissionToReview(sub);
-                                  setReviewForm({
-                                    status: sub.status || 'APPROVED',
-                                    feedback: sub.feedback || 'Outstanding architecture and clean modular components.',
-                                    grade: sub.grade || 'A+'
-                                  });
-                                }}
-                                className="px-3 py-1 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg transition"
-                              >
-                                Evaluate
-                              </button>
+                {/* 4 Summary Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+                  <div 
+                    onClick={() => { setTaskTypeFilter('ALL'); setTaskStatusFilter('ALL'); }}
+                    className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-xs cursor-pointer hover:border-slate-300 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500">Total Submissions</span>
+                      <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">
+                        <CheckSquare className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-slate-900 mt-2">{totalCount}</div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">{projectCount} Projects • {trainingCount} Training</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setTaskStatusFilter('SUBMITTED')}
+                    className={`p-4 rounded-2xl bg-white border shadow-xs cursor-pointer transition ${
+                      taskStatusFilter === 'SUBMITTED' ? 'border-amber-400 ring-2 ring-amber-100' : 'border-slate-200/80 hover:border-amber-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-700">Pending Review</span>
+                      <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center relative">
+                        {pendingCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>}
+                        <Clock className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-amber-700 mt-2">{pendingCount}</div>
+                    <div className="text-[10px] text-amber-600 font-semibold mt-0.5">Needs mentor evaluation</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setTaskStatusFilter('APPROVED')}
+                    className={`p-4 rounded-2xl bg-white border shadow-xs cursor-pointer transition ${
+                      taskStatusFilter === 'APPROVED' ? 'border-emerald-400 ring-2 ring-emerald-100' : 'border-slate-200/80 hover:border-emerald-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-emerald-700">Approved</span>
+                      <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-emerald-700 mt-2">{approvedCount}</div>
+                    <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">Passed code review</div>
+                  </div>
+
+                  <div 
+                    onClick={() => setTaskStatusFilter('REVISION')}
+                    className={`p-4 rounded-2xl bg-white border shadow-xs cursor-pointer transition ${
+                      taskStatusFilter === 'REVISION' ? 'border-rose-400 ring-2 ring-rose-100' : 'border-slate-200/80 hover:border-rose-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-rose-700">Revision Required</span>
+                      <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <AlertCircle className="w-4 h-4" />
+                      </div>
+                    </div>
+                    <div className="text-2xl font-black text-rose-700 mt-2">{revisionCount}</div>
+                    <div className="text-[10px] text-rose-600 font-semibold mt-0.5">Awaiting student update</div>
+                  </div>
+                </div>
+
+                {/* Filter and Search Bar */}
+                <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  {/* Category Type Tabs */}
+                  <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl">
+                    <button
+                      onClick={() => setTaskTypeFilter('ALL')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                        taskTypeFilter === 'ALL'
+                          ? 'bg-white text-slate-900 shadow-2xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      All Deliverables ({totalCount})
+                    </button>
+                    <button
+                      onClick={() => setTaskTypeFilter('PROJECT_TASK')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        taskTypeFilter === 'PROJECT_TASK'
+                          ? 'bg-white text-indigo-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-indigo-700'
+                      }`}
+                    >
+                      <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Sprint Projects ({projectCount})</span>
+                    </button>
+                    <button
+                      onClick={() => setTaskTypeFilter('TRAINING_MODULE')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                        taskTypeFilter === 'TRAINING_MODULE'
+                          ? 'bg-white text-teal-700 shadow-2xs'
+                          : 'text-slate-600 hover:text-teal-700'
+                      }`}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-teal-500" />
+                      <span>Stage 2 Modules ({trainingCount})</span>
+                    </button>
+                  </div>
+
+                  {/* Search and Status Dropdown */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        placeholder="Search student, task, repo..."
+                        value={taskSearchQuery}
+                        onChange={(e) => setTaskSearchQuery(e.target.value)}
+                        className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                      />
+                      {taskSearchQuery && (
+                        <button
+                          onClick={() => setTaskSearchQuery('')}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    <select
+                      value={taskStatusFilter}
+                      onChange={(e) => setTaskStatusFilter(e.target.value)}
+                      className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-slate-700"
+                    >
+                      <option value="ALL">All Statuses</option>
+                      <option value="SUBMITTED">Pending Evaluation</option>
+                      <option value="APPROVED">Approved (Passed)</option>
+                      <option value="REVISION">Revision Required</option>
+                    </select>
+
+                    {(taskSearchQuery || taskTypeFilter !== 'ALL' || taskStatusFilter !== 'ALL') && (
+                      <button
+                        onClick={() => {
+                          setTaskSearchQuery('');
+                          setTaskTypeFilter('ALL');
+                          setTaskStatusFilter('ALL');
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl text-slate-500 hover:bg-slate-100 text-xs font-semibold transition"
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Submissions Table */}
+                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span>
+                      Showing {filteredSubmissions.length} of {totalCount} Deliverables
+                    </span>
+                    {taskStatusFilter === 'SUBMITTED' && pendingCount > 0 && (
+                      <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-extrabold border border-amber-200">
+                        {pendingCount} awaiting your action
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs min-w-[960px]">
+                      <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
+                        <tr>
+                          <th className="py-3.5 px-5 min-w-[220px]">Deliverable</th>
+                          <th className="py-3.5 px-5 min-w-[190px]">Student</th>
+                          <th className="py-3.5 px-5 min-w-[150px]">Repository &amp; Live Demo</th>
+                          <th className="py-3.5 px-5 min-w-[120px] whitespace-nowrap">Submitted At</th>
+                          <th className="py-3.5 px-5 min-w-[150px]">Review Status</th>
+                          <th className="py-3.5 px-5 min-w-[70px]">Grade</th>
+                          <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[140px]">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredSubmissions.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="text-center py-12">
+                              <div className="max-w-xs mx-auto text-center space-y-2">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                                  <CheckSquare className="w-6 h-6" />
+                                </div>
+                                <div className="font-bold text-slate-800 text-sm">No deliverables found</div>
+                                <p className="text-slate-400 text-xs">
+                                  {totalCount === 0
+                                    ? 'No student deliverables have been submitted yet. When students submit task repositories, they will appear here in real time.'
+                                    : 'No submissions matched your active search or status filters.'}
+                                </p>
+                                {(taskSearchQuery || taskTypeFilter !== 'ALL' || taskStatusFilter !== 'ALL') && (
+                                  <button
+                                    onClick={() => {
+                                      setTaskSearchQuery('');
+                                      setTaskTypeFilter('ALL');
+                                      setTaskStatusFilter('ALL');
+                                    }}
+                                    className="mt-2 px-3 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold cursor-pointer"
+                                  >
+                                    Clear Filters
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          filteredSubmissions.map(sub => {
+                            const isProject = sub.submission_type === 'PROJECT_TASK';
+                            const isPending = sub.status === 'SUBMITTED' || sub.status === 'PENDING';
+                            const isApproved = sub.status === 'APPROVED';
+                            const isRevision = sub.status === 'REVISION_REQUIRED' || sub.status === 'REVISION_REQUESTED';
+
+                            return (
+                              <tr key={sub.id} className="hover:bg-slate-50/70 transition">
+                                {/* Deliverable Column */}
+                                <td className="py-4 px-5">
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                                        isProject 
+                                          ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
+                                          : 'bg-teal-50 text-teal-700 border border-teal-200'
+                                      }`}>
+                                        {isProject ? <Code2 className="w-3 h-3" /> : <BookOpen className="w-3 h-3" />}
+                                        <span>{isProject ? 'Sprint Task' : 'Stage 2 Module'}</span>
+                                      </span>
+                                    </div>
+                                    <div className="font-extrabold text-slate-900 text-sm">
+                                      {sub.project_title || 'Deliverable'}
+                                    </div>
+                                    {sub.notes && (
+                                      <button
+                                        onClick={() => setSelectedNotesDetail(sub)}
+                                        className="text-[11px] text-sky-600 hover:text-sky-800 font-semibold flex items-center gap-1 pt-0.5 cursor-pointer text-left"
+                                      >
+                                        <FileText className="w-3 h-3 shrink-0" />
+                                        <span className="truncate max-w-[200px]">Notes: "{sub.notes}"</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Student Column */}
+                                <td className="py-4 px-5">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                                      {(sub.student_name || 'S').charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="font-bold text-slate-800 truncate">{sub.student_name}</div>
+                                      <div className="text-[10px] text-slate-400 truncate">{sub.student_email}</div>
+                                      {sub.college && (
+                                        <div className="text-[10px] text-slate-400 truncate max-w-[170px]">{sub.college}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Repository & Live Links */}
+                                <td className="py-4 px-5">
+                                  <div className="space-y-1.5">
+                                    {sub.github_repo_url ? (
+                                      <a
+                                        href={sub.github_repo_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-mono text-[11px] font-semibold transition shadow-2xs"
+                                      >
+                                        <Code2 className="w-3.5 h-3.5 text-sky-400" />
+                                        <span>GitHub Repo</span>
+                                        <ExternalLink className="w-3 h-3 opacity-70" />
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-400 text-xs font-mono">No repo provided</span>
+                                    )}
+
+                                    <div>
+                                      {sub.live_deployment_url ? (
+                                        <a
+                                          href={sub.live_deployment_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono text-[11px] font-semibold border border-emerald-200 transition"
+                                        >
+                                          <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                                          <span>Live Demo</span>
+                                          <ExternalLink className="w-3 h-3 opacity-70" />
+                                        </a>
+                                      ) : (
+                                        <span className="text-[10px] text-slate-400 font-mono">Live Demo: —</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </td>
+
+                                {/* Submitted At */}
+                                <td className="py-4 px-5 text-slate-500 whitespace-nowrap">
+                                  <div className="font-semibold text-slate-700">
+                                    {sub.submitted_at 
+                                      ? new Date(sub.submitted_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                                      : 'Recently'}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">
+                                    {sub.submitted_at 
+                                      ? new Date(sub.submitted_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                      : ''}
+                                  </div>
+                                </td>
+
+                                {/* Status Column */}
+                                <td className="py-4 px-5">
+                                  <div className="space-y-1">
+                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full font-extrabold text-[10px] ${
+                                      isApproved 
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                        : isRevision
+                                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
+                                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                                    }`}>
+                                      {isApproved && <CheckCircle className="w-3 h-3 text-emerald-600" />}
+                                      {isPending && <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-ping"></span>}
+                                      {isRevision && <AlertCircle className="w-3 h-3 text-rose-600" />}
+                                      <span>{isApproved ? 'Approved' : isRevision ? 'Revision Required' : 'Pending Review'}</span>
+                                    </span>
+
+                                    {sub.feedback && (
+                                      <div className="text-[10px] text-slate-500 italic max-w-[180px] truncate" title={sub.feedback}>
+                                        "{sub.feedback}"
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                                {/* Grade */}
+                                <td className="py-4 px-5">
+                                  <span className="inline-block px-2 py-0.5 rounded-lg bg-slate-100 font-mono font-extrabold text-xs text-slate-800 border border-slate-200">
+                                    {sub.grade || '—'}
+                                  </span>
+                                </td>
+
+                                {/* Action Button */}
+                                <td className="py-4 px-5 text-right whitespace-nowrap min-w-[140px]">
+                                  <div className="inline-flex items-center justify-end gap-1.5">
+                                    {sub.notes && (
+                                      <button
+                                        onClick={() => setSelectedNotesDetail(sub)}
+                                        title="View Student Submission Notes"
+                                        className="p-1.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                                      >
+                                        <FileText className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedSubmissionToReview(sub);
+                                        setReviewForm({
+                                          status: sub.status === 'SUBMITTED' ? 'APPROVED' : (sub.status || 'APPROVED'),
+                                          feedback: sub.feedback || 'Outstanding architecture, clean code structure, and verified functional demo.',
+                                          grade: sub.grade || 'A+'
+                                        });
+                                      }}
+                                      className={`px-3 py-1.5 font-bold rounded-xl text-xs transition flex items-center gap-1.5 shadow-2xs cursor-pointer ${
+                                        isPending
+                                          ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold ring-2 ring-amber-300'
+                                          : 'bg-sky-600 hover:bg-sky-700 text-white'
+                                      }`}
+                                    >
+                                      <Sparkles className="w-3 h-3" />
+                                      <span>{isPending ? 'Evaluate' : 'Re-grade'}</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ========================================================
               VIEW 6: CERTIFICATE MANAGEMENT (SECTION 22)
@@ -2087,16 +2581,16 @@ export const AdminDashboard = ({ onLogout }) => {
 
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[950px]">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-5">Student</th>
-                        <th className="py-3.5 px-5">Student ID</th>
-                        <th className="py-3.5 px-5">Domain</th>
-                        <th className="py-3.5 px-5">Certificate ID</th>
-                        <th className="py-3.5 px-5">Issue Date</th>
-                        <th className="py-3.5 px-5">Status</th>
-                        <th className="py-3.5 px-5 text-right">Actions</th>
+                        <th className="py-3.5 px-5 min-w-[170px]">Student</th>
+                        <th className="py-3.5 px-5 min-w-[130px]">Student ID</th>
+                        <th className="py-3.5 px-5 min-w-[150px]">Domain</th>
+                        <th className="py-3.5 px-5 min-w-[140px]">Certificate ID</th>
+                        <th className="py-3.5 px-5 min-w-[110px]">Issue Date</th>
+                        <th className="py-3.5 px-5 min-w-[90px]">Status</th>
+                        <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[210px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2134,60 +2628,59 @@ export const AdminDashboard = ({ onLogout }) => {
                                 {cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' ? 'REVOKED' : 'VALID'}
                               </span>
                             </td>
-                            <td className="py-4 px-5 text-right space-x-1.5 whitespace-nowrap">
-                              <a
-                                href={`/api/documents/certificate/${cert.id}/view`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="View Document Canvas"
-                              >
-                                <Eye className="w-3 h-3" />
-                                <span>View</span>
-                              </a>
-                              <a
-                                href={`/api/documents/certificate/${cert.id}/download`}
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="Download Document File"
-                              >
-                                <Download className="w-3 h-3" />
-                                <span>Download</span>
-                              </a>
-                              <a
-                                href={`/verify/${cert.id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="Open Public Verification"
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                <span>Verify</span>
-                              </a>
-                              <button
-                                onClick={() => handleResendCertEmail(cert.id)}
-                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="Resend Notification Email to Student"
-                              >
-                                <Send className="w-3 h-3" />
-                                <span>Resend</span>
-                              </button>
-                              {cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' ? (
-                                <button
-                                  onClick={() => handleRestoreCertificate(cert.id)}
-                                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition text-[11px]"
-                                  title="Restore Certificate to Valid Status"
+                            <td className="py-4 px-5 text-right whitespace-nowrap min-w-[210px]">
+                              <div className="inline-flex items-center justify-end gap-1">
+                                <a
+                                  href={`/api/documents/certificate/${cert.id}/view`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-xl transition inline-flex items-center gap-1 text-xs"
+                                  title="View Document Canvas"
                                 >
-                                  Restore
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleRevokeCertificate(cert.id)}
-                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition text-[11px]"
-                                  title="Revoke Certificate"
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>View</span>
+                                </a>
+                                <a
+                                  href={`/api/documents/certificate/${cert.id}/download`}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition inline-flex items-center justify-center"
+                                  title="Download Document File"
                                 >
-                                  Revoke
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                                <a
+                                  href={`/verify/${cert.id}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition inline-flex items-center justify-center"
+                                  title="Open Public Verification"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                                <button
+                                  onClick={() => handleResendCertEmail(cert.id)}
+                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition inline-flex items-center justify-center"
+                                  title="Resend Notification Email to Student"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
                                 </button>
-                              )}
+                                {cert.status === 'REVOKED' || cert.certificate_status === 'REVOKED' ? (
+                                  <button
+                                    onClick={() => handleRestoreCertificate(cert.id)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-xs"
+                                    title="Restore Certificate to Valid Status"
+                                  >
+                                    Restore
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleRevokeCertificate(cert.id)}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl transition text-xs"
+                                    title="Revoke Certificate"
+                                  >
+                                    Revoke
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -2221,18 +2714,18 @@ export const AdminDashboard = ({ onLogout }) => {
 
               <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[980px]">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-5">Student</th>
-                        <th className="py-3.5 px-5">Student ID</th>
-                        <th className="py-3.5 px-5">Domain</th>
-                        <th className="py-3.5 px-5">Internship ID</th>
-                        <th className="py-3.5 px-5">Offer ID</th>
-                        <th className="py-3.5 px-5">Issue Date</th>
-                        <th className="py-3.5 px-5">Email Status</th>
-                        <th className="py-3.5 px-5">Status</th>
-                        <th className="py-3.5 px-5 text-right">Actions</th>
+                        <th className="py-3.5 px-5 min-w-[170px]">Student</th>
+                        <th className="py-3.5 px-5 min-w-[130px]">Student ID</th>
+                        <th className="py-3.5 px-5 min-w-[150px]">Domain</th>
+                        <th className="py-3.5 px-5 min-w-[140px]">Internship ID</th>
+                        <th className="py-3.5 px-5 min-w-[140px]">Offer ID</th>
+                        <th className="py-3.5 px-5 min-w-[110px]">Issue Date</th>
+                        <th className="py-3.5 px-5 min-w-[100px]">Email Status</th>
+                        <th className="py-3.5 px-5 min-w-[80px]">Status</th>
+                        <th className="py-3.5 px-5 text-right whitespace-nowrap min-w-[190px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -2278,50 +2771,50 @@ export const AdminDashboard = ({ onLogout }) => {
                                 {ol.status || 'ACTIVE'}
                               </span>
                             </td>
-                            <td className="py-4 px-5 text-right space-x-1.5 whitespace-nowrap">
-                              <a
-                                href={`/api/documents/offer-letter/${ol.id}/view`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="View Document Canvas"
-                              >
-                                <Eye className="w-3 h-3" />
-                                <span>View</span>
-                              </a>
-                              <a
-                                href={`/api/documents/offer-letter/${ol.id}/download`}
-                                className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="Download Document File"
-                              >
-                                <Download className="w-3 h-3" />
-                                <span>Download</span>
-                              </a>
-                              <button
-                                onClick={() => handleResendOLEmail(ol.id)}
-                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition inline-flex items-center gap-1 text-[11px]"
-                                title="Resend Notification Email to Student"
-                              >
-                                <Send className="w-3 h-3" />
-                                <span>Resend</span>
-                              </button>
-                              {ol.status === 'REVOKED' ? (
-                                <button
-                                  onClick={() => handleRestoreOfferLetter(ol.id)}
-                                  className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg transition text-[11px]"
-                                  title="Restore Offer Letter"
+                            <td className="py-4 px-5 text-right whitespace-nowrap min-w-[190px]">
+                              <div className="inline-flex items-center justify-end gap-1">
+                                <a
+                                  href={`/api/documents/offer-letter/${ol.id}/view`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="px-2.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-xl transition inline-flex items-center gap-1 text-xs"
+                                  title="View Document Canvas"
                                 >
-                                  Restore
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handleRevokeOfferLetter(ol.id)}
-                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-lg transition text-[11px]"
-                                  title="Revoke Offer Letter"
+                                  <Eye className="w-3.5 h-3.5" />
+                                  <span>View</span>
+                                </a>
+                                <a
+                                  href={`/api/documents/offer-letter/${ol.id}/download`}
+                                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition inline-flex items-center justify-center"
+                                  title="Download Offer Letter File"
                                 >
-                                  Revoke
+                                  <Download className="w-3.5 h-3.5" />
+                                </a>
+                                <button
+                                  onClick={() => handleResendOLEmail(ol.id)}
+                                  className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl transition inline-flex items-center justify-center"
+                                  title="Resend Notification Email to Student"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
                                 </button>
-                              )}
+                                {ol.status === 'REVOKED' ? (
+                                  <button
+                                    onClick={() => handleRestoreOfferLetter(ol.id)}
+                                    className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition text-xs"
+                                    title="Restore Offer Letter"
+                                  >
+                                    Restore
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleRevokeOfferLetter(ol.id)}
+                                    className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold rounded-xl transition text-xs"
+                                    title="Revoke Offer Letter"
+                                  >
+                                    Revoke
+                                  </button>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         ))
@@ -2439,38 +2932,38 @@ export const AdminDashboard = ({ onLogout }) => {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full text-left text-xs min-w-[920px]">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
                       <tr>
-                        <th className="py-3.5 px-6">Cashfree Order ID</th>
-                        <th className="py-3.5 px-6">Student Contact</th>
-                        <th className="py-3.5 px-6">Gross Amount</th>
-                        <th className="py-3.5 px-6">Method / Gateway</th>
-                        <th className="py-3.5 px-6">PG Status</th>
-                        <th className="py-3.5 px-6 text-right">Actions</th>
+                        <th className="py-3.5 px-6 min-w-[170px]">Cashfree Order ID</th>
+                        <th className="py-3.5 px-6 min-w-[180px]">Student Contact</th>
+                        <th className="py-3.5 px-6 min-w-[130px]">Gross Amount</th>
+                        <th className="py-3.5 px-6 min-w-[150px]">Method / Gateway</th>
+                        <th className="py-3.5 px-6 min-w-[120px]">PG Status</th>
+                        <th className="py-3.5 px-6 text-right whitespace-nowrap min-w-[140px]">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {paymentsList.map(pay => (
-                        <tr key={pay.id} className="hover:bg-slate-50/60 transition">
+                        <tr key={pay.id} className="hover:bg-slate-50/70 transition">
                           <td className="py-4 px-6">
                             <div className="font-mono font-bold text-slate-900 flex items-center gap-1.5">
-                              <span className="truncate max-w-[150px]">{pay.order_id}</span>
+                              <span className="truncate max-w-[150px] bg-slate-100 px-2 py-0.5 rounded-lg border border-slate-200/60 font-mono text-[11px]">{pay.order_id}</span>
                               <button
                                 onClick={() => copyToClipboard(pay.order_id, `order_${pay.id}`)}
-                                className="text-slate-400 hover:text-slate-700"
+                                className="text-slate-400 hover:text-sky-600 transition"
                                 title="Copy Order ID"
                               >
                                 <Copy className="w-3 h-3" />
                               </button>
                             </div>
-                            <div className="text-[10px] text-slate-400 font-mono">
+                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">
                               {pay.created_at ? new Date(pay.created_at).toLocaleDateString() : 'Recent'}
                             </div>
                           </td>
                           <td className="py-4 px-6">
                             <div className="font-bold text-slate-900">{pay.student_name}</div>
-                            <div className="text-[11px] text-slate-500 font-mono">{pay.student_email}</div>
+                            <div className="text-[11px] text-slate-500 font-mono mt-0.5">{pay.student_email}</div>
                           </td>
                           <td className="py-4 px-6 font-bold text-slate-900">
                             ₹{pay.amount || 200}.00 {pay.currency || 'INR'}
@@ -2488,16 +2981,17 @@ export const AdminDashboard = ({ onLogout }) => {
                               <span>{pay.status}</span>
                             </span>
                           </td>
-                          <td className="py-4 px-6 text-right">
+                          <td className="py-4 px-6 text-right whitespace-nowrap min-w-[140px]">
                             <button
                               onClick={() => {
                                 setCashfreeQueryInput(pay.order_id);
                                 handleQueryCashfreeLive(null, pay.order_id);
                               }}
-                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition"
+                              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs inline-flex items-center gap-1.5 shadow-2xs transition hover:scale-[1.02]"
                               title="Query Cashfree Gateway Status Live"
                             >
-                              Check PG Status
+                              <RefreshCw className="w-3 h-3 text-emerald-400" />
+                              <span>Inspect PG</span>
                             </button>
                           </td>
                         </tr>
@@ -3115,86 +3609,261 @@ export const AdminDashboard = ({ onLogout }) => {
       {/* ========================================================
           MODAL: REVIEW SUBMISSION MODAL
       ======================================================== */}
-      {selectedSubmissionToReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-4 text-left text-slate-800">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Evaluate Student Submission</h3>
-              <button onClick={() => setSelectedSubmissionToReview(null)} className="text-slate-400 font-bold">✕</button>
-            </div>
+      {selectedSubmissionToReview && (() => {
+        const isProject = selectedSubmissionToReview.submission_type === 'PROJECT_TASK';
+        const feedbackPresets = [
+          "🌟 Outstanding architecture, clean code structure, and verified functional demo.",
+          "✅ Clean modular components, proper responsive layout, and well-structured Git commits.",
+          "🔧 Good progress! Please fix responsive mobile styling and check browser console errors.",
+          "🌐 Code looks solid. Please ensure the live deployment URL is accessible and update README.",
+          "📝 Milestone approved! Excellent implementation adhering to industry standards."
+        ];
 
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
-              <div>Task: <strong className="text-slate-900">{selectedSubmissionToReview.project_title}</strong></div>
-              <div>Student: <strong className="text-slate-900">{selectedSubmissionToReview.student_name}</strong></div>
-              <div className="pt-1 flex gap-3">
-                <a href={selectedSubmissionToReview.github_repo_url} target="_blank" rel="noopener noreferrer" className="text-sky-600 font-bold hover:underline flex items-center gap-1">
-                  <span>Open GitHub Repo</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-                {selectedSubmissionToReview.live_deployment_url && (
-                  <a href={selectedSubmissionToReview.live_deployment_url} target="_blank" rel="noopener noreferrer" className="text-emerald-600 font-bold hover:underline flex items-center gap-1">
-                    <span>Open Live URL</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+            <div className="w-full max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 text-left text-slate-800 max-h-[92dvh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      isProject ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-teal-50 text-teal-700 border border-teal-200'
+                    }`}>
+                      {isProject ? 'Sprint Task Review' : 'Stage 2 Module Review'}
+                    </span>
+                    <h3 className="text-base font-extrabold text-slate-900 mt-0.5">Evaluate Student Deliverable</h3>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSelectedSubmissionToReview(null)} 
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Deliverable Metadata Card */}
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-200/60">
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Project / Task:</span>
+                    <div className="font-extrabold text-slate-900 text-sm">{selectedSubmissionToReview.project_title}</div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase">Student:</span>
+                    <div className="font-bold text-slate-800">{selectedSubmissionToReview.student_name}</div>
+                    <div className="text-[10px] text-slate-400">{selectedSubmissionToReview.student_email}</div>
+                  </div>
+                </div>
+
+                {/* GitHub & Live Demo Links */}
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {selectedSubmissionToReview.github_repo_url && (
+                    <a
+                      href={selectedSubmissionToReview.github_repo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-mono text-[11px] font-bold transition shadow-2xs"
+                    >
+                      <Code2 className="w-3.5 h-3.5 text-slate-300" />
+                      <span>Inspect GitHub Repository</span>
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </a>
+                  )}
+
+                  {selectedSubmissionToReview.live_deployment_url ? (
+                    <a
+                      href={selectedSubmissionToReview.live_deployment_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-mono text-[11px] font-bold border border-emerald-300 transition"
+                    >
+                      <Globe className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Open Live Demo</span>
+                      <ExternalLink className="w-3 h-3 opacity-70" />
+                    </a>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 italic">No live demo URL provided</span>
+                  )}
+                </div>
+
+                {/* Student Notes Preview */}
+                {selectedSubmissionToReview.notes && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600">
+                    <span className="font-bold text-[10px] text-slate-500 uppercase block mb-0.5">Student Notes:</span>
+                    <p className="text-[11px] text-slate-700 italic leading-relaxed">"{selectedSubmissionToReview.notes}"</p>
+                  </div>
                 )}
               </div>
+
+              {/* Evaluation Form */}
+              <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Evaluation Decision</label>
+                    <select
+                      value={reviewForm.status}
+                      onChange={(e) => setReviewForm({ ...reviewForm, status: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-bold focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-slate-800"
+                    >
+                      <option value="APPROVED">✓ Approve (Passed)</option>
+                      <option value="REVISION_REQUIRED">⚠ Request Revision</option>
+                      <option value="COMPLETED">✓ Mark Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">Award Grade</label>
+                    <select
+                      value={reviewForm.grade}
+                      onChange={(e) => setReviewForm({ ...reviewForm, grade: e.target.value })}
+                      className="w-full p-2.5 rounded-xl border border-slate-300 font-mono font-bold focus:ring-2 focus:ring-sky-500 focus:outline-none bg-white text-slate-800"
+                    >
+                      <option value="A+">Grade A+ (Exemplary • 95-100%)</option>
+                      <option value="A">Grade A (Proficient • 85-94%)</option>
+                      <option value="B+">Grade B+ (Good • 75-84%)</option>
+                      <option value="B">Grade B (Satisfactory • 65-74%)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Quick Feedback Presets */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-slate-700">Quick Feedback Templates</label>
+                    <span className="text-[10px] text-slate-400">Click to insert</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {feedbackPresets.map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setReviewForm({ ...reviewForm, feedback: preset })}
+                        className="text-[10px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-sky-50 hover:text-sky-800 hover:border-sky-300 border border-slate-200 text-slate-600 font-semibold transition cursor-pointer text-left truncate max-w-full"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Mentor Remarks &amp; Official Feedback</label>
+                  <textarea
+                    rows={3}
+                    required
+                    placeholder="Provide constructive technical code feedback..."
+                    value={reviewForm.feedback}
+                    onChange={(e) => setReviewForm({ ...reviewForm, feedback: e.target.value })}
+                    className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none leading-relaxed text-slate-800"
+                  />
+                </div>
+
+                <div className="flex gap-2.5 pt-1">
+                  <button
+                    type="submit"
+                    disabled={reviewLoading}
+                    className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-extrabold rounded-xl text-xs shadow-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                  >
+                    <CheckCircle className={`w-3.5 h-3.5 ${reviewLoading ? 'animate-spin' : ''}`} />
+                    <span>{reviewLoading ? 'Publishing Evaluation...' : 'Save & Publish Evaluation'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSubmissionToReview(null)}
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ========================================================
+          MODAL: STUDENT SUBMISSION NOTES VIEWER
+      ======================================================== */}
+      {selectedNotesDetail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-4 text-left text-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black text-sky-600 uppercase">Student Submission Notes</span>
+                  <h3 className="text-base font-extrabold text-slate-900">{selectedNotesDetail.project_title}</h3>
+                </div>
+              </div>
+              <button onClick={() => setSelectedNotesDetail(null)} className="text-slate-400 hover:text-slate-600 p-1 font-bold cursor-pointer">
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Evaluation Decision</label>
-                <select
-                  value={reviewForm.status}
-                  onChange={(e) => setReviewForm({ ...reviewForm, status: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                >
-                  <option value="APPROVED">Approve (Passed)</option>
-                  <option value="REVISION_REQUIRED">Revision Required</option>
-                  <option value="COMPLETED">Completed</option>
-                </select>
+            <div className="space-y-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-semibold">Student Name:</span>
+                  <strong className="text-slate-900">{selectedNotesDetail.student_name}</strong>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-semibold">Email:</span>
+                  <span className="text-slate-700">{selectedNotesDetail.student_email}</span>
+                </div>
+                {selectedNotesDetail.college && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 font-semibold">College:</span>
+                    <span className="text-slate-700">{selectedNotesDetail.college}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span className="text-slate-400 font-semibold">Submitted:</span>
+                  <span className="text-slate-700">
+                    {selectedNotesDetail.submitted_at ? new Date(selectedNotesDetail.submitted_at).toLocaleString() : 'Recently'}
+                  </span>
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Award Grade</label>
-                <select
-                  value={reviewForm.grade}
-                  onChange={(e) => setReviewForm({ ...reviewForm, grade: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none font-bold"
-                >
-                  <option value="A+">Grade A+ (Exemplary)</option>
-                  <option value="A">Grade A (Proficient)</option>
-                  <option value="B+">Grade B+ (Good)</option>
-                  <option value="B">Grade B (Satisfactory)</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Mentor Remarks &amp; Feedback</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={reviewForm.feedback}
-                  onChange={(e) => setReviewForm({ ...reviewForm, feedback: e.target.value })}
-                  className="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-sky-500 focus:outline-none"
-                />
+                <span className="font-bold text-slate-700 block mb-1">Student Notes &amp; Implementation Description:</span>
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-slate-700 leading-relaxed font-sans text-xs whitespace-pre-wrap max-h-48 overflow-y-auto">
+                  {selectedNotesDetail.notes || 'No notes provided by student.'}
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">
                 <button
-                  type="submit"
-                  className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs shadow-sm"
+                  type="button"
+                  onClick={() => {
+                    const sub = selectedNotesDetail;
+                    setSelectedNotesDetail(null);
+                    setSelectedSubmissionToReview(sub);
+                    setReviewForm({
+                      status: sub.status === 'SUBMITTED' ? 'APPROVED' : (sub.status || 'APPROVED'),
+                      feedback: sub.feedback || 'Outstanding architecture and clean modular components.',
+                      grade: sub.grade || 'A+'
+                    });
+                  }}
+                  className="flex-1 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-extrabold rounded-xl text-xs transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs"
                 >
-                  Submit Evaluation
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Proceed to Evaluate Deliverable</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelectedSubmissionToReview(null)}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs"
+                  onClick={() => setSelectedNotesDetail(null)}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer"
                 >
-                  Cancel
+                  Close
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

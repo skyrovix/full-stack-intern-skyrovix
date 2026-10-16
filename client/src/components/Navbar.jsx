@@ -17,6 +17,18 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Lock background scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
+
   const primaryLinks = [
     { label: 'Overview', href: '#overview' },
     { label: 'Curriculum', href: '#curriculum' },
@@ -86,7 +98,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
   const officialWhatsApp = whatsappUrl || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP';
 
   return (
-    <header className="sticky top-0 z-40 w-full max-w-full">
+    <header className="sticky top-0 z-50 w-full max-w-full">
       {/* 5. TOP ANNOUNCEMENT BAR (Slim Premium Height: 34-38px, Deep Navy #071426) */}
       <div className="w-full bg-[#071426] text-white text-[11px] sm:text-xs font-medium h-[36px] flex items-center px-4 border-b border-slate-800/80 transition-colors">
         <div className="w-full max-w-[1280px] mx-auto flex items-center justify-between gap-3">
@@ -217,23 +229,35 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
                   background: 'linear-gradient(135deg, #0788C7, #2348B8)'
                 }}
               >
-                <span>APPLY FOR BATCH 1</span>
+                <span className="whitespace-nowrap">APPLY FOR BATCH 1</span>
                 <ArrowRight className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
               </button>
             </div>
 
             {/* Mobile / Tablet Header Controls */}
-            <div className="flex lg:hidden items-center gap-2 shrink-0">
+            <div className="flex lg:hidden items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Prominent Mobile Header Login Button */}
+              <button
+                onClick={onOpenLogin}
+                className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-bold px-2.5 sm:px-3 py-1.5 text-[#192837] hover:text-[#087FC1] bg-slate-100 hover:bg-slate-200 border border-slate-200/90 rounded-full transition-all whitespace-nowrap cursor-pointer shadow-xs active:scale-95"
+                title="Login to Dashboard"
+                id="mobile-header-login-btn"
+              >
+                <LogIn className="w-3.5 h-3.5 text-[#087FC1]" />
+                <span>Login</span>
+              </button>
+
               <button
                 onClick={onOpenApply}
-                className="text-xs font-bold px-3.5 py-1.5 text-white rounded-full shadow-sm whitespace-nowrap"
+                className="text-[11px] sm:text-xs font-bold px-3 py-1.5 text-white rounded-full shadow-sm whitespace-nowrap cursor-pointer active:scale-95"
                 style={{ background: 'linear-gradient(135deg, #0788C7, #2348B8)' }}
+                id="mobile-header-apply-btn"
               >
                 Apply (₹200)
               </button>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 text-slate-700 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none"
+                className="p-1.5 sm:p-2 text-slate-700 hover:text-slate-900 rounded-xl hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
                 aria-label="Toggle Navigation"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -247,7 +271,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
       {/* 21. MOBILE NAVIGATION DRAWER (Framer Motion AnimatePresence, slide from right) */}
       <AnimatePresence>
         {mobileMenuOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 z-[100] lg:hidden">
             {/* Backdrop with blur */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -255,7 +279,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
               onClick={() => setMobileMenuOpen(false)}
-              className="absolute inset-0 bg-[#192837]/35 backdrop-blur-[4px]"
+              className="absolute inset-0 bg-[#071426]/60 backdrop-blur-[6px]"
             />
 
             {/* Right-sliding drawer */}
@@ -264,50 +288,78 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="absolute top-0 right-0 w-[min(88vw,360px)] h-[100dvh] bg-white shadow-[-12px_0_48px_rgba(25,40,55,0.18)] flex flex-col justify-between p-6 overflow-y-auto"
+              className="absolute top-0 right-0 w-[min(90vw,380px)] h-[100dvh] bg-white shadow-[-16px_0_50px_rgba(7,20,38,0.25)] flex flex-col justify-between overflow-hidden"
             >
-              <div>
-                {/* Header */}
-                <div className="flex items-center justify-between pb-5 border-b border-slate-100">
+              {/* TOP SECTION: Header + Quick Login Banner (Fixed shrink-0) */}
+              <div className="p-5 sm:p-6 pb-3 border-b border-slate-100 shrink-0 bg-white">
+                <div className="flex items-center justify-between">
                   <img src={navLogo} alt="Skyrovix" className="h-8 w-auto object-contain" />
                   <button
                     onClick={() => setMobileMenuOpen(false)}
-                    className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    className="p-2 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                     aria-label="Close menu"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                {/* Staggered Nav Links */}
-                <div className="py-4 space-y-1">
-                  {allNavLinks.map((link, idx) => (
-                    <motion.a
-                      key={link.label}
-                      href={link.href}
-                      initial={{ opacity: 0, x: 12 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.03 + 0.05 }}
-                      onClick={(e) => handleNavClick(e, link.href)}
-                      className="block px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#192837] hover:text-[#7342E2] hover:bg-[#7342E2]/5 transition-colors"
-                    >
-                      {link.label}
-                    </motion.a>
-                  ))}
+                {/* Quick Access Student & Admin Portal Banner */}
+                <div className="mt-3.5 p-3 rounded-2xl bg-gradient-to-r from-sky-50 via-indigo-50/70 to-sky-50 border border-sky-200/80 shadow-xs flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#087FC1] to-[#2447B8] text-white flex items-center justify-center shrink-0 shadow-sm">
+                      <LogIn className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-900 leading-tight truncate">Student & Admin Portal</p>
+                      <p className="text-[10px] text-sky-700 font-medium leading-tight">Access internship dashboard</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      onOpenLogin();
+                    }}
+                    className="px-3.5 py-1.5 text-xs font-extrabold text-white rounded-xl shadow-xs shrink-0 cursor-pointer transition-transform active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #087FC1, #2447B8)' }}
+                    id="drawer-top-login-btn"
+                  >
+                    Login &rarr;
+                  </button>
                 </div>
               </div>
 
-              {/* Drawer Footer Actions */}
-              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              {/* MIDDLE SCROLLABLE SECTION: Nav Links */}
+              <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-3 space-y-1">
+                <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-3.5 pb-1">
+                  Menu Navigation
+                </p>
+                {allNavLinks.map((link, idx) => (
+                  <motion.a
+                    key={link.label}
+                    href={link.href}
+                    initial={{ opacity: 0, x: 12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.02 + 0.04 }}
+                    onClick={(e) => handleNavClick(e, link.href)}
+                    className="block px-3.5 py-2.5 rounded-xl text-sm font-semibold text-[#192837] hover:text-[#7342E2] hover:bg-[#7342E2]/5 transition-colors"
+                  >
+                    {link.label}
+                  </motion.a>
+                ))}
+              </div>
+
+              {/* BOTTOM SECTION: CTAs (Fixed shrink-0, always visible) */}
+              <div className="p-5 sm:p-6 pt-3 border-t border-slate-100 space-y-2.5 bg-slate-50/80 shrink-0 pb-8 sm:pb-6">
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
                     onOpenApply();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-white rounded-2xl font-extrabold text-sm shadow-md"
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 text-white rounded-2xl font-extrabold text-xs sm:text-sm shadow-md cursor-pointer transition-transform active:scale-[0.98]"
                   style={{ background: 'linear-gradient(135deg, #0788C7, #2348B8)' }}
+                  id="drawer-apply-btn"
                 >
-                  <span>APPLY FOR BATCH 1 — ₹200</span>
+                  <span className="whitespace-nowrap">APPLY FOR BATCH 1 — ₹200</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -315,7 +367,7 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
                   href={officialWhatsApp}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#ECFFF8] text-[#123F35] border border-[#35D39A] rounded-2xl font-bold text-xs"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-[#ECFFF8] hover:bg-[#d8fced] text-[#123F35] border border-[#35D39A] rounded-2xl font-bold text-xs transition-colors shadow-2xs"
                 >
                   <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
                   <span>JOIN OFFICIAL WHATSAPP GROUP</span>
@@ -326,7 +378,8 @@ export const Navbar = ({ onOpenApply, onOpenLogin, onOpenAdmin, onOpenGuide, onO
                     setMobileMenuOpen(false);
                     onOpenLogin();
                   }}
-                  className="w-full py-2.5 text-xs font-bold text-[#192837] bg-slate-100 hover:bg-slate-200 rounded-xl text-center transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full py-2.5 text-xs font-bold text-[#192837] hover:text-[#087FC1] bg-white hover:bg-slate-100 border border-slate-200/90 rounded-2xl text-center transition-colors flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer active:scale-[0.98]"
+                  id="drawer-bottom-login-btn"
                 >
                   <LogIn className="w-3.5 h-3.5 text-[#087FC1]" />
                   <span>Login to Dashboard</span>

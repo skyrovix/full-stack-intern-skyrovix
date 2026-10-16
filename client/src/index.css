@@ -156,6 +156,10 @@
     mask-composite: exclude;
     pointer-events: none;
   }
+
+  .safe-area-pb {
+    padding-bottom: max(0.65rem, env(safe-area-inset-bottom, 0.65rem));
+  }
 }
 
 /* Subtle float animations */

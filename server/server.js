@@ -2522,9 +2522,9 @@ app.post('/api/user/tasks/submit', requirePaidStudent, async (req, res) => {
     const student = req.student;
 
     const workflow = await getOrCreateInternWorkflow(student.id);
-    if (workflow?.stage3_status === 'LOCKED' || workflow?.is_manually_locked) {
+    if (workflow?.is_manually_locked === 1) {
       return res.status(403).json({
-        error: 'Stage 3 is locked. Complete all required Training & Learning modules to unlock your Internship Project.'
+        error: workflow.manual_lock_reason || 'Submissions are currently locked by administrator. Please contact support.'
       });
     }
 
@@ -2548,9 +2548,29 @@ app.post('/api/user/tasks/submit', requirePaidStudent, async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, 'SUBMITTED')
       `, [subId, student.id, taskId, projectTitle || 'Project Submission', githubRepoUrl.trim(), liveDeploymentUrl?.trim() || '', notes?.trim() || '']);
     }
+
+    // Auto-progress stage 3 to IN_PROGRESS if currently locked or not started
+    if (workflow && workflow.stage3_status === 'LOCKED') {
+      await dbRun(`UPDATE intern_workflows SET stage3_status = 'IN_PROGRESS', updated_at = CURRENT_TIMESTAMP WHERE student_id = ?`, [student.id]);
+    }
+
+    // Send confirmation in-app notification to the student
+    const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+    await dbRun(`
+      INSERT INTO user_notifications (id, user_id, title, message, type)
+      VALUES (?, ?, ?, ?, ?)
+    `, [
+      notifId,
+      student.id,
+      `Task Submitted: ${projectTitle || 'Project Submission'}`,
+      `Your task deliverable has been submitted successfully and is queued for mentor code review.`,
+      'info'
+    ]);
+
     res.json({ success: true, message: 'Assignment submitted successfully for review!', submission_id: subId });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to submit assignment' });
+    console.error('Error submitting task:', e);
+    res.status(500).json({ error: 'Failed to submit assignment', details: e.message });
   }
 });
 
@@ -3270,36 +3290,153 @@ app.post('/api/admin/internships', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get tasks and student submissions (Admin)
+// Get tasks and student submissions (Admin - Project Tasks & Training Modules)
 app.get('/api/admin/tasks', authenticateAdmin, async (req, res) => {
   try {
     const tasks = await dbAll(`SELECT * FROM student_tasks ORDER BY order_num ASC`);
-    const submissions = await dbAll(`
+    
+    // 1. Capstone / Sprint Project Task Submissions (LEFT JOIN to prevent any missing records)
+    const projectSubmissions = await dbAll(`
       SELECT 
-        sub.*,
-        s.full_name as student_name,
-        s.email as student_email,
-        s.college
+        sub.id,
+        sub.student_id,
+        sub.project_id,
+        sub.project_title,
+        sub.github_repo_url,
+        sub.live_deployment_url,
+        sub.notes,
+        sub.status,
+        sub.feedback,
+        sub.grade,
+        sub.submitted_at,
+        sub.reviewed_at,
+        'PROJECT_TASK' as submission_type,
+        COALESCE(s.full_name, 'Student') as student_name,
+        COALESCE(s.email, '') as student_email,
+        COALESCE(s.college, '') as college,
+        r.internship_id
       FROM submissions sub
-      JOIN students s ON sub.student_id = s.id
+      LEFT JOIN students s ON (sub.student_id = s.id OR sub.student_id = s.student_id_formatted)
+      LEFT JOIN registrations r ON (sub.student_id = r.student_id OR sub.student_id = r.internship_id)
       ORDER BY sub.submitted_at DESC
     `);
 
-    res.json({ success: true, tasks, submissions });
+    // 2. Stage 2 Training Module Submissions (Practical assignments submitted in Stage 2)
+    const trainingSubmissions = await dbAll(`
+      SELECT 
+        ts.id,
+        ts.student_id,
+        ts.module_id as project_id,
+        CONCAT('Module ', COALESCE(tm.module_num, 'T'), ': ', COALESCE(tm.title, 'Training Module')) as project_title,
+        tm.title as module_title,
+        tm.module_num,
+        COALESCE(ts.github_url, ts.submission_url, '') as github_repo_url,
+        COALESCE(ts.live_demo_url, ts.submission_url, '') as live_deployment_url,
+        ts.notes,
+        ts.status,
+        ts.admin_feedback as feedback,
+        'A' as grade,
+        ts.submitted_at,
+        ts.reviewed_at,
+        'TRAINING_MODULE' as submission_type,
+        COALESCE(s.full_name, 'Student') as student_name,
+        COALESCE(s.email, '') as student_email,
+        COALESCE(s.college, '') as college,
+        r.internship_id
+      FROM training_submissions ts
+      LEFT JOIN training_modules tm ON ts.module_id = tm.id
+      LEFT JOIN students s ON (ts.student_id = s.id OR ts.student_id = s.student_id_formatted)
+      LEFT JOIN registrations r ON (ts.student_id = r.student_id OR ts.student_id = r.internship_id)
+      ORDER BY ts.submitted_at DESC
+    `);
+
+    // 3. Combined unified submissions list
+    const allSubmissions = [...projectSubmissions, ...trainingSubmissions].sort((a, b) => {
+      const dateA = new Date(a.submitted_at || 0).getTime();
+      const dateB = new Date(b.submitted_at || 0).getTime();
+      return dateB - dateA;
+    });
+
+    res.json({
+      success: true,
+      tasks,
+      submissions: allSubmissions,
+      project_submissions: projectSubmissions,
+      training_submissions: trainingSubmissions
+    });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to load tasks and submissions' });
+    console.error('Failed to load tasks and submissions:', e);
+    res.status(500).json({ error: 'Failed to load tasks and submissions', details: e.message });
   }
 });
 
-// Review student task submission (Approve, Revision, Grade, Feedback)
+// Review student task submission (Approve, Revision, Grade, Feedback) - Handles BOTH Project and Training submissions
 app.put('/api/admin/tasks/submissions/:id/review', authenticateAdmin, async (req, res) => {
   try {
     const subId = req.params.id;
     const { status, feedback, grade } = req.body;
 
-    const sub = await dbGet(`SELECT * FROM submissions WHERE id = ?`, [subId]);
-    if (!sub) return res.status(404).json({ error: 'Submission not found' });
+    // Check project submissions first
+    let sub = await dbGet(`SELECT * FROM submissions WHERE id = ?`, [subId]);
+    let isTraining = false;
 
+    if (!sub) {
+      // Check training submissions table
+      sub = await dbGet(`SELECT * FROM training_submissions WHERE id = ?`, [subId]);
+      if (!sub) return res.status(404).json({ error: 'Submission not found' });
+      isTraining = true;
+    }
+
+    if (isTraining) {
+      const newStatus = status === 'REJECTED' || status === 'REVISION_REQUIRED' ? 'REVISION_REQUESTED' : (status || 'APPROVED');
+      await dbRun(`
+        UPDATE training_submissions SET
+          status = ?,
+          admin_feedback = ?,
+          reviewed_by = ?,
+          reviewed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `, [newStatus, feedback || 'Evaluated by Skyrovix Reviewer', req.admin?.username || 'admin', subId]);
+
+      // Check if all 5 modules are approved -> auto-unlock Stage 3
+      if (newStatus === 'APPROVED') {
+        const approvedCountObj = await dbGet(`
+          SELECT COUNT(*) as cnt FROM training_submissions 
+          WHERE student_id = ? AND status = 'APPROVED'
+        `, [sub.student_id]);
+        const approvedCount = parseInt(approvedCountObj?.cnt || 0, 10);
+        if (approvedCount >= 5) {
+          await dbRun(`
+            UPDATE intern_workflows SET 
+              stage2_status = 'APPROVED',
+              stage3_status = 'UNLOCKED',
+              current_stage = 3,
+              updated_at = CURRENT_TIMESTAMP
+            WHERE student_id = ?
+          `, [sub.student_id]);
+        }
+      }
+
+      // Send in-app notification to the student
+      const notifId = `notif_${Date.now()}_${crypto.randomBytes(2).toString('hex')}`;
+      await dbRun(`
+        INSERT INTO user_notifications (id, user_id, title, message, type)
+        VALUES (?, ?, ?, ?, ?)
+      `, [
+        notifId,
+        sub.student_id,
+        `Training Module ${newStatus === 'APPROVED' ? 'Approved' : 'Evaluation Updated'}`,
+        `Your training assignment has been reviewed: ${newStatus}. Feedback: ${feedback || 'Approved'}`,
+        newStatus === 'APPROVED' ? 'success' : 'info'
+      ]);
+
+      return res.json({
+        success: true,
+        message: `Training module submission successfully evaluated as ${newStatus}!`
+      });
+    }
+
+    // Otherwise evaluate capstone / sprint project submission
     await dbRun(`
       UPDATE submissions SET
         status = ?,
@@ -3344,7 +3481,8 @@ app.put('/api/admin/tasks/submissions/:id/review', authenticateAdmin, async (req
       certificate_id: autoCertResult?.certificate?.id || null
     });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to review submission' });
+    console.error('Error reviewing submission:', e);
+    res.status(500).json({ error: 'Failed to review submission', details: e.message });
   }
 });
 

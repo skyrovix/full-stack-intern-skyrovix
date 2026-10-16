@@ -77,24 +77,25 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-md bg-white rounded-[24px] p-6 sm:p-8 shadow-[0_25px_60px_rgba(7,20,38,0.25)] border border-[rgba(25,40,55,0.08)] text-left relative overflow-hidden">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+      <div className="w-full max-w-md bg-white rounded-[24px] p-5 sm:p-8 shadow-[0_25px_60px_rgba(7,20,38,0.25)] border border-[rgba(25,40,55,0.08)] text-left relative max-h-[92dvh] overflow-y-auto my-auto">
         
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-[#192837] transition cursor-pointer"
+          className="absolute top-4 right-4 sm:top-5 sm:right-5 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-[#192837] transition cursor-pointer z-10"
+          aria-label="Close"
         >
           <X className="w-4 h-4" />
         </button>
 
         {/* Modal Header */}
-        <div className="space-y-3 pb-2 text-center">
+        <div className="space-y-2 sm:space-y-3 pb-2 text-center pt-1">
           <div className="inline-flex justify-center">
-            <img src={navLogo} alt="Skyrovix" className="h-9 w-auto object-contain" />
+            <img src={navLogo} alt="Skyrovix" className="h-8 sm:h-9 w-auto object-contain" />
           </div>
           <div>
-            <h3 className="font-heading text-xl font-black text-[#192837] tracking-tight">
+            <h3 className="font-heading text-lg sm:text-xl font-black text-[#192837] tracking-tight">
               Sign In to Skyrovix
             </h3>
             <p className="text-xs text-[#4C5B6D] mt-1">
@@ -112,13 +113,13 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
         )}
 
         {/* Login Form */}
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4 text-xs">
+        <form onSubmit={handleSubmit} className="space-y-3.5 sm:space-y-4 mt-3 sm:mt-4 text-xs">
           <div>
             <label className="block font-bold text-[#192837] mb-1">
               Email Address / Username <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
               <input
                 type="text"
                 required
@@ -129,7 +130,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
                   setEmail(e.target.value);
                   if (error) setError('');
                 }}
-                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837]"
+                className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837] text-sm sm:text-xs"
               />
             </div>
           </div>
@@ -139,7 +140,7 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
               Account Password <span className="text-rose-500">*</span>
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3 sm:top-2.5" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
@@ -150,12 +151,13 @@ export const LoginModal = ({ isOpen, onClose, onLoginSuccess, onAdminLoginSucces
                   setPassword(e.target.value);
                   if (error) setError('');
                 }}
-                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837]"
+                className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-[#087FC1] text-[#192837] text-sm sm:text-xs"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer p-1"
+                aria-label="Toggle password visibility"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>

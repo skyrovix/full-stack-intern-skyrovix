@@ -153,25 +153,25 @@ export const CashfreeModal = ({
   if (!isOpen || !orderDetails) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg rounded-[24px] bg-white shadow-[0_25px_60px_rgba(7,20,38,0.30)] border border-[rgba(25,40,55,0.08)] overflow-hidden text-left antialiased font-sans">
+    <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
+      <div className="relative w-full max-w-lg rounded-[24px] bg-white shadow-[0_25px_60px_rgba(7,20,38,0.30)] border border-[rgba(25,40,55,0.08)] overflow-hidden text-left antialiased font-sans max-h-[92dvh] flex flex-col my-auto">
         
         {/* Top Header Bar */}
-        <div className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#071426] via-[#0b1c34] to-[#071426] text-white">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#18C7E8] to-[#00B978] flex items-center justify-center font-black text-slate-950 text-base shadow">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 bg-gradient-to-r from-[#071426] via-[#0b1c34] to-[#071426] text-white shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-br from-[#18C7E8] to-[#00B978] flex items-center justify-center font-black text-slate-950 text-base shadow shrink-0">
               ₹
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-heading text-sm font-black tracking-wide text-white">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <h3 className="font-heading text-xs sm:text-sm font-black tracking-wide text-white">
                   CASHFREE PAYMENTS GATEWAY
                 </h3>
-                <span className="text-[10px] font-bold px-2 py-0.2 rounded-full bg-[#00B978]/20 text-[#00B978] border border-[#00B978]/30">
+                <span className="text-[9px] sm:text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#00B978]/20 text-[#00B978] border border-[#00B978]/30">
                   LIVE SECURE
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300">
+              <p className="text-[10px] sm:text-[11px] text-slate-300">
                 Official 256-Bit SSL Encrypted Checkout
               </p>
             </div>
@@ -186,32 +186,32 @@ export const CashfreeModal = ({
         </div>
 
         {/* Order Amount Bar */}
-        <div className="p-6 bg-gradient-to-b from-[#F7F9FC] to-white border-b border-[rgba(25,40,55,0.08)] flex items-center justify-between">
+        <div className="p-4 sm:p-6 bg-gradient-to-b from-[#F7F9FC] to-white border-b border-[rgba(25,40,55,0.08)] flex items-center justify-between shrink-0">
           <div className="space-y-0.5">
-            <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#087FC1]">
+            <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider text-[#087FC1]">
               Internship Registration
             </span>
-            <p className="font-heading text-sm font-bold text-[#192837]">
+            <p className="font-heading text-xs sm:text-sm font-bold text-[#192837]">
               Skyrovix Batch 1 Program Fee
             </p>
-            <p className="text-[11px] text-[#4C5B6D] font-mono">
+            <p className="text-[10px] sm:text-[11px] text-[#4C5B6D] font-mono">
               Order ID: <span className="font-semibold text-[#087FC1]">{currentOrder?.order_id || orderDetails.order_id}</span>
             </p>
           </div>
           <div className="text-right">
-            <span className="text-[11px] font-semibold text-[#4C5B6D] block">Total Payable</span>
-            <span className="font-heading text-3xl font-black text-[#192837] tracking-tight">₹200.00</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-[#4C5B6D] block">Total Payable</span>
+            <span className="font-heading text-2xl sm:text-3xl font-black text-[#192837] tracking-tight">₹200.00</span>
           </div>
         </div>
 
         {/* Breakdown Guarantee Banner */}
-        <div className="px-6 py-2.5 bg-emerald-50 border-b border-emerald-200/80 text-[11px] font-semibold text-emerald-900 flex items-center gap-2">
+        <div className="px-4 sm:px-6 py-2 sm:py-2.5 bg-emerald-50 border-b border-emerald-200/80 text-[10px] sm:text-[11px] font-semibold text-emerald-900 flex items-center gap-2 shrink-0">
           <ShieldCheck className="w-4 h-4 text-[#00B978] shrink-0" />
-          <span>Internship Tuition: <strong>₹0.00 (100% Free)</strong> • Only ₹200 Registration Fee Applicable.</span>
+          <span>Internship Tuition: <strong>₹0.00 (100% Free)</strong> • Only ₹200 Registration Fee.</span>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 flex-1 overflow-y-auto">
           
           {/* Student Applicant Summary Card */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-2">

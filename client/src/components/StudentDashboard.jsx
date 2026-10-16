@@ -56,6 +56,8 @@ import maheshSig from '../assets/mahesh sig.jpeg';
 import msmeLogo from '../assets/msme.png';
 import vinixLogo from '../assets/vinix.png';
 import yrLogo from '../assets/yr-tech logo.png';
+import defaultInternAvatar from '../assets/intern-avatar.jpg';
+import hariAvatar from '../assets/hari-avatar.png';
 import { StudentGuideView } from './StudentGuideView';
 import { WhatsAppIcon, InstagramIcon } from './BrandIcons';
 import { handleDownloadOfferLetter, handleDownloadCertificate } from './documents/OfferLetterCertificateTemplates';
@@ -66,7 +68,6 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   // Valid active views: 'dashboard' | 'workflow' | 'profile' | 'internship' | 'applications' | 'tasks' | 'certificates' | 'offer-letters' | 'payments' | 'notifications' | 'support' | 'settings'
   const [activeView, setActiveView] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Core Data
   const [profileData, setProfileData] = useState(null);
@@ -825,11 +826,13 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
         ? profile.id 
         : `SKX-2026-${profile.id ? profile.id.slice(-4).toUpperCase() : '9055'}`);
   
-  const domainName = 'Full Stack Development';
+  const domainName = registration?.domain || internshipData?.domain || (profile.full_name === 'Hariharan S' ? 'Cloud Computing' : 'Full Stack Development');
 
   const enrollmentDate = profile.full_name === 'Hariharan S' ? '21 Sept 2026' : (registration?.created_at ? new Date(registration.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '21 Sept 2026');
-  const isSixMonths = String(internshipData?.duration || registration?.duration || offerLettersList[0]?.duration || '').includes('6');
-  const durationStr = isSixMonths ? '6 Months' : '3 Months';
+  const rawDuration = String(internshipData?.duration || registration?.duration || offerLettersList[0]?.duration || '');
+  const isOneMonth = rawDuration.includes('1');
+  const isSixMonths = rawDuration.includes('6');
+  const durationStr = isOneMonth ? '1 Month' : (isSixMonths ? '6 Months' : (profile.full_name === 'Hariharan S' ? '1 Month' : '3 Months'));
 
   // Dynamic real-time task calculations based on live database submissions
   const getTaskOrder = (t, idx) => t.order_num || (idx + 1);
@@ -847,10 +850,11 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
   const month4TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 26 && getTaskOrder(t, i) <= 33).length;
   const month5TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 34 && getTaskOrder(t, i) <= 41).length;
   const month6TasksCount = tasksList.filter((t, i) => getTaskOrder(t, i) >= 42 && getTaskOrder(t, i) <= 50).length;
-  const progressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const calculatedProgressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 0;
+  const progressPct = profile.full_name === 'Hariharan S' ? (calculatedProgressPct || 100) : (calculatedProgressPct || stats?.progress_pct || 0);
   const unreadNotifsCount = notificationsList.filter(n => !n.is_read).length;
 
-  const getCalculatedEndDate = (startDateStr, monthsCount = (isSixMonths ? 6 : 3)) => {
+  const getCalculatedEndDate = (startDateStr, monthsCount = (isSixMonths ? 6 : (isOneMonth ? 1 : 3))) => {
     const d = new Date(startDateStr);
     const base = !isNaN(d.getTime()) ? d : new Date();
     const end = new Date(base);
@@ -875,7 +879,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
 
   // Helper to render user avatar or initials medallion
   const renderAvatar = (sizeClasses = "w-full h-full", textClasses = "text-base", extraClasses = "") => {
-    const avatarUrl = profileData?.profile?.avatar_url || profileForm?.avatar_url;
+    const avatarUrl = profileData?.profile?.avatar_url || profileForm?.avatar_url || (profile.full_name === 'Hariharan S' ? hariAvatar : defaultInternAvatar);
     if (avatarUrl) {
       return (
         <img 
@@ -1062,18 +1066,20 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
       <div className="flex-1 flex flex-col min-w-0 lg:pl-64 w-full">
         
         {/* Dashboard Top Header */}
-        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-4 sm:px-6 lg:px-8 shadow-xs">
+        <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200/80 flex items-center justify-between px-3 sm:px-6 lg:px-8 shadow-xs">
           
+          {/* Left Side: Mobile Logo & Desktop Breadcrumbs */}
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="lg:hidden p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100"
+            {/* Mobile Skyrovix Logo on Left */}
+            <button 
+              onClick={() => setActiveView('dashboard')} 
+              className="lg:hidden flex items-center gap-2 focus:outline-none cursor-pointer"
             >
-              <Menu className="w-5 h-5" />
+              <img src={navLogo} alt="Skyrovix" className="h-7 w-auto object-contain" />
             </button>
 
-            {/* Breadcrumb title */}
-            <div className="flex items-center gap-2">
+            {/* Desktop Breadcrumb title */}
+            <div className="hidden lg:flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-400">User Dashboard</span>
               <span className="text-xs text-slate-300">/</span>
               <span className="text-xs font-bold text-slate-900 capitalize">
@@ -1083,7 +1089,7 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           </div>
 
           {/* Top Right Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             
             {/* Quick Search */}
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-400">
@@ -1099,13 +1105,13 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
             <div className="relative">
               <button
                 onClick={() => setShowNotifications(!showNotifications)}
-                className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition relative"
+                className="w-9 h-9 rounded-full border border-slate-200/90 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition relative cursor-pointer"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4 text-slate-600" />
                 {unreadNotifsCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full">
-                    {unreadNotifsCount}
+                  <span className="absolute -top-1 -right-1 bg-[#ff4d4f] text-white text-[9px] font-black px-1.5 py-0.2 rounded-full border-2 border-white shadow-xs">
+                    {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
                   </span>
                 )}
               </button>
@@ -1160,25 +1166,16 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
               )}
             </div>
 
-            {/* Dark/Light toggle */}
-            <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
-              className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-100 transition"
-              title="Toggle Theme"
-            >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-slate-600" />}
-            </button>
-
             {/* User Dropdown Pill */}
             <div className="relative">
               <button
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
-                className="flex items-center gap-2 pl-1 pr-3 py-1 rounded-full border border-slate-200 hover:border-slate-300 bg-white transition shadow-2xs"
+                className="flex items-center gap-1.5 pl-1 pr-2 sm:pr-3 py-1 rounded-full border border-slate-200/90 hover:border-slate-300 bg-white transition shadow-2xs cursor-pointer"
               >
-                <div className="w-7 h-7 rounded-full bg-[#0a1e3f] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-2xs">
+                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#0a1e3f] text-white flex items-center justify-center font-bold text-xs shrink-0 overflow-hidden shadow-2xs">
                   {renderAvatar("w-full h-full", "text-[11px]")}
                 </div>
-                <span className="text-xs font-semibold text-slate-700 max-w-[110px] truncate">
+                <span className="hidden sm:inline text-xs font-semibold text-slate-700 max-w-[110px] truncate">
                   {internName}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
@@ -1254,6 +1251,15 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
               )}
             </div>
 
+            {/* Mobile Hamburger Drawer Button on Far Right */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden w-9 h-9 rounded-2xl border border-slate-200/90 text-slate-700 hover:bg-slate-100 flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
+              title="Open Navigation Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
           </div>
 
         </header>
@@ -1266,193 +1272,525 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
           ======================================================== */}
           {activeView === 'dashboard' && (
             <div className="space-y-7">
-              {/* 1. Main Navy Hero Card (Welcome Intern box is first) */}
-              <section className="rounded-[28px] bg-gradient-to-r from-[#0d1f3d] via-[#102a54] to-[#0c1e3a] p-6 sm:p-8 lg:p-10 text-white relative shadow-2xl border border-slate-800/80 overflow-hidden">
-                <div className="absolute top-0 right-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+              {/* 1. Main Navy Hero Card - Responsive: Executive Split Deck on Laptop, Compact on Mobile */}
+              <section 
+                className="rounded-3xl bg-[#0f2d4a] text-white p-5 sm:p-7 relative shadow-2xl border border-[#1b4369]/60 overflow-hidden"
+                style={{
+                  backgroundImage: 'linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
+                  backgroundSize: '22px 22px'
+                }}
+              >
+                {/* Glowing subtle ambient gradients */}
+                <div className="absolute top-0 right-0 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
 
-                <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                  
-                  {/* Left Column: Avatar, Welcome Intern, Intern Name, Info pill, Buttons */}
-                  <div className="flex-1 space-y-6">
-                    <div className="flex items-center gap-4 sm:gap-5">
+                {/* ========================================================
+                    A. LAPTOP / DESKTOP VIEW (lg: and up)
+                    Executive Asymmetric Dual-Zone Layout
+                ======================================================== */}
+                <div className="hidden lg:flex lg:flex-col lg:gap-6 relative z-10">
+                  {/* Top Deck: Profile Info & Meta on Left + Progress & Social Deck on Right */}
+                  <div className="grid grid-cols-12 gap-6 items-center">
+                    
+                    {/* Left Column: Avatar, Intern Name, Badges & Metadata */}
+                    <div className="col-span-7 xl:col-span-8 flex items-center gap-5">
+                      {/* Large Avatar with glowing border & verified check */}
                       <div className="relative shrink-0">
-                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-white/20 p-0.5 overflow-hidden bg-slate-800 shadow-md">
-                          {renderAvatar("w-full h-full", "text-xl sm:text-2xl")}
+                        <div className="w-20 h-20 rounded-2xl border-2 border-white/20 p-1 overflow-hidden bg-slate-800 shadow-xl shadow-cyan-950/40">
+                          {renderAvatar("w-full h-full", "text-2xl")}
                         </div>
-                        <span className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full bg-[#00c9a7] border-2 border-[#0d1f3d] flex items-center justify-center text-white shadow-xs">
-                          <Check className="w-3 h-3 stroke-[3]" />
-                        </span>
+                        {profile.full_name !== 'Hariharan S' && (
+                          <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#00c9a7] border-2 border-[#0f2d4a] flex items-center justify-center text-white shadow-md">
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </span>
+                        )}
                       </div>
 
-                      <div className="space-y-1">
-                        <div>
-                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider bg-[#1c2e47] text-amber-300 border border-amber-400/20 shadow-2xs">
-                            <Sparkles className="w-3 h-3 fill-amber-300 text-amber-300" />
+                      {/* Intern Details & Badges */}
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-[#153454] text-slate-200 border border-[#214c77] shadow-2xs">
+                            <Sparkles className="w-2.5 h-2.5 text-amber-300 fill-amber-300" />
                             WELCOME INTERN
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            Active Intern
                           </span>
                         </div>
 
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+                        <h1 className="text-2xl xl:text-3xl font-black text-white tracking-tight leading-tight truncate">
                           {internName}
                         </h1>
 
-                        <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                          <span className="px-3 py-0.5 rounded-full text-xs font-bold bg-[#0284c7]/25 text-[#38bdf8] border border-[#0284c7]/30">
-                            {domainName}
-                          </span>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="font-bold text-[#00b4d8]">{domainName}</span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-slate-300 text-xs font-medium">Batch 1</span>
+                        </div>
 
+                        {/* Inline Metadata Row: Copy ID + Enrolled + Duration */}
+                        <div className="flex items-center gap-2.5 pt-1 flex-wrap">
                           <button
                             onClick={() => handleCopyId(studentFormattedId)}
-                            className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-mono text-slate-300 bg-[#172b48] hover:bg-[#1f3a60] border border-slate-700/60 transition shadow-2xs"
+                            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono text-slate-300 bg-[#14324f] hover:bg-[#1a3f65] border border-[#1e4670] transition shadow-2xs cursor-pointer active:scale-95"
                             title="Click to copy ID"
                           >
                             <span>ID: {studentFormattedId}</span>
-                            {copiedId ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                            {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
                           </button>
                           {copiedId && <span className="text-[10px] text-emerald-400 font-bold animate-pulse">Copied!</span>}
+
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-slate-300 bg-[#0e2942]/90 border border-[#1c456c]/70">
+                            <Calendar className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />
+                            <span>Enrolled: <strong className="text-white font-bold">{enrollmentDate}</strong></span>
+                          </div>
+
+                          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs text-slate-300 bg-[#0e2942]/90 border border-[#1c456c]/70">
+                            <Clock className="w-3.5 h-3.5 text-[#38bdf8] shrink-0" />
+                            <span>Duration: <strong className="text-white font-bold">{durationStr}</strong></span>
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Metadata Strip */}
-                    <div className="bg-[#0a182c]/75 border border-slate-700/50 rounded-full px-5 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-300 shadow-inner">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Enrolled: <strong className="text-white font-semibold">{enrollmentDate}</strong></span>
-                      </div>
+                    {/* Right Column: Progress & Social Quick-Connect Card */}
+                    <div className="col-span-5 xl:col-span-4">
+                      <div className="bg-[#123352]/75 border border-[#1d466e] rounded-2xl p-4 shadow-xl backdrop-blur-xs flex flex-col gap-3">
+                        {/* Progress & Milestone Row */}
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#00e5bc]">
+                              INTERNSHIP PROGRESS
+                            </span>
+                            <div className="text-lg font-black text-white">
+                              {progressPct}% <span className="text-xs font-medium text-slate-300">Completed</span>
+                            </div>
+                            <div className="text-[11px] text-slate-300 font-medium">
+                              {completedTasksCount} of {totalTasksCount} tasks verified
+                            </div>
+                          </div>
 
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Duration: <strong className="text-white font-semibold">{durationStr}</strong></span>
-                      </div>
+                          {/* Circular SVG Gauge */}
+                          <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
+                            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                              <circle
+                                cx="50"
+                                cy="50"
+                                r="38"
+                                fill="transparent"
+                                stroke="#16395b"
+                                strokeWidth="10"
+                              />
+                              <circle
+                                cx="50"
+                                cy="50"
+                                r="38"
+                                fill="transparent"
+                                stroke="#00e5bc"
+                                strokeWidth="10"
+                                strokeDasharray={gaugeCircumference}
+                                strokeDashoffset={gaugeOffset}
+                                strokeLinecap="round"
+                                className="transition-all duration-1000 ease-out"
+                              />
+                            </svg>
+                            <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-white">
+                              {progressPct}%
+                            </span>
+                          </div>
+                        </div>
 
-                      <div className="flex items-center gap-2">
-                        <Sliders className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                        <span>Tasks: <strong className="text-[#00c9a7] font-bold">{completedTasksCount} / {totalTasksCount} Completed</strong></span>
-                      </div>
-                    </div>
+                        {/* Social Connect Pills - Properly proportioned for laptop */}
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-700/50">
+                          <a
+                            href={internshipData?.whatsapp_url || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition hover:shadow-emerald-500/20 active:scale-95"
+                            title="Join Official WhatsApp Group"
+                          >
+                            <WhatsAppIcon className="w-3.5 h-3.5 fill-white shrink-0" />
+                            <span className="truncate">WhatsApp</span>
+                          </a>
 
-                    {/* Action Buttons Rows */}
-                    <div className="space-y-3 pt-1">
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <button
-                          onClick={() => {
-                            setSelectedOfferLetter(offerLettersList[0] || null);
-                            setShowOfferLetterModal(true);
-                          }}
-                          className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>View Offer Letter</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            const ol = offerLettersList[0];
-                            handleDownloadOfferLetter({
-                              fullName: ol?.student_name || internName,
-                              internId: ol?.internship_id || ol?.intern_id || studentFormattedId,
-                              domain: ol?.domain || domainName,
-                              issuedAt: ol?.issue_date || enrollmentDate,
-                              duration: ol?.duration || durationStr
-                            });
-                          }}
-                          className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-                        >
-                          <Download className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Download Offer Letter</span>
-                        </button>
-
-                        <button
-                          onClick={() => setShowIdCardModal(true)}
-                          className="px-4 py-2 rounded-full bg-[#1a3258] hover:bg-[#234172] text-white border border-slate-600/50 text-xs font-semibold flex items-center gap-1.5 transition shadow-2xs"
-                        >
-                          <Download className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>Download ID Card</span>
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            setActiveView('guide');
-                          }}
-                          className="px-4 py-2 rounded-full bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-500 hover:to-blue-600 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-sm cursor-pointer"
-                        >
-                          <BookOpen className="w-3.5 h-3.5 text-sky-200" />
-                          <span>Student Guide</span>
-                        </button>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2.5">
-                        <a
-                          href={internshipData?.whatsapp_url || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-5 py-2 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs flex items-center gap-2 transition shadow-sm active:scale-95"
-                        >
-                          <WhatsAppIcon className="w-4 h-4 fill-white" />
-                          <span>WhatsApp Group</span>
-                        </a>
-
-                        <a
-                          href="https://www.instagram.com/skyrovix"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-5 py-2 rounded-full bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-95 text-white font-bold text-xs flex items-center gap-2 transition shadow-sm active:scale-95"
-                        >
-                          <InstagramIcon className="w-4 h-4 fill-white" />
-                          <span>Instagram</span>
-                        </a>
+                          <a
+                            href="https://www.instagram.com/skyrovix"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="py-2 px-3 rounded-xl bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition hover:shadow-rose-500/20 active:scale-95"
+                            title="Follow Skyrovix on Instagram"
+                          >
+                            <InstagramIcon className="w-3.5 h-3.5 fill-white shrink-0" />
+                            <span className="truncate">Instagram</span>
+                          </a>
+                        </div>
                       </div>
                     </div>
 
                   </div>
 
-                  {/* Right Column: 100% Circular Progress Meter */}
-                  <div className="shrink-0 flex items-center justify-center self-center lg:self-auto py-2">
-                    <div className="w-32 h-32 sm:w-36 sm:h-36 rounded-full bg-[#08162b] border border-cyan-500/20 p-2.5 relative flex items-center justify-center shadow-2xl">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r={gaugeRadius}
-                          fill="transparent"
-                          stroke="#142b4b"
-                          strokeWidth="8"
-                        />
-                        <circle
-                          cx="50"
-                          cy="50"
-                          r={gaugeRadius}
-                          fill="transparent"
-                          stroke="#00c9a7"
-                          strokeWidth="8"
-                          strokeDasharray={gaugeCircumference}
-                          strokeDashoffset={gaugeOffset}
-                          strokeLinecap="round"
-                          className="transition-all duration-1000 ease-out"
-                        />
-                      </svg>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
-                        <span className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                          {progressPct}%
-                        </span>
-                        <span className="text-[9px] font-extrabold tracking-widest text-[#00c9a7] uppercase mt-0.5">
+                  {/* Bottom Row on Laptop: 4 Rich Executive Action Cards */}
+                  <div className="grid grid-cols-4 gap-4 pt-1">
+                    {/* Card 1: View Offer */}
+                    <button
+                      onClick={() => {
+                        setSelectedOfferLetter(offerLettersList[0] || null);
+                        setShowOfferLetterModal(true);
+                      }}
+                      className="bg-[#122e4c]/80 hover:bg-[#183a62] border border-[#1c456c]/70 hover:border-cyan-500/40 rounded-2xl p-4 flex items-center gap-3.5 transition text-left group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#1b3e66] text-[#38bdf8] flex items-center justify-center shrink-0 group-hover:scale-110 transition shadow-inner">
+                        <Eye className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white group-hover:text-cyan-300 transition truncate">View Offer</div>
+                        <div className="text-[10px] text-slate-400 truncate">Terms & verification</div>
+                      </div>
+                    </button>
+
+                    {/* Card 2: Offer Letter */}
+                    <button
+                      onClick={() => {
+                        const ol = offerLettersList[0];
+                        handleDownloadOfferLetter({
+                          fullName: ol?.student_name || internName,
+                          internId: ol?.internship_id || ol?.intern_id || studentFormattedId,
+                          domain: ol?.domain || domainName,
+                          issuedAt: ol?.issue_date || enrollmentDate,
+                          duration: ol?.duration || durationStr
+                        });
+                      }}
+                      className="bg-[#122e4c]/80 hover:bg-[#183a62] border border-[#1c456c]/70 hover:border-cyan-500/40 rounded-2xl p-4 flex items-center gap-3.5 transition text-left group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#1b3e66] text-[#38bdf8] flex items-center justify-center shrink-0 group-hover:scale-110 transition shadow-inner">
+                        <Download className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white group-hover:text-cyan-300 transition truncate">Offer Letter</div>
+                        <div className="text-[10px] text-slate-400 truncate">Signed PDF document</div>
+                      </div>
+                    </button>
+
+                    {/* Card 3: ID Card */}
+                    <button
+                      onClick={() => setShowIdCardModal(true)}
+                      className="bg-[#122e4c]/80 hover:bg-[#183a62] border border-[#1c456c]/70 hover:border-teal-500/40 rounded-2xl p-4 flex items-center gap-3.5 transition text-left group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5"
+                    >
+                      <div className="w-11 h-11 rounded-xl bg-[#0d4554] text-[#00d2b4] flex items-center justify-center shrink-0 group-hover:scale-110 transition shadow-inner">
+                        <Download className="w-5 h-5" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-white group-hover:text-teal-300 transition truncate">Intern ID Card</div>
+                        <div className="text-[10px] text-slate-400 truncate">Virtual ID pass</div>
+                      </div>
+                    </button>
+
+                    {/* Card 4: Certificate / Locked */}
+                    {certificatesList && certificatesList.length > 0 ? (
+                      <button
+                        onClick={() => {
+                          const cert = certificatesList[0];
+                          handleDownloadCertificate({
+                            fullName: cert.student_name || internName,
+                            internId: cert.internship_id || cert.intern_id || studentFormattedId,
+                            domain: cert.domain || domainName,
+                            certId: cert.certificate_id || cert.id,
+                            issuedAt: cert.issue_date || enrollmentDate,
+                            verifyUrl: `https://skyrovix.online/verify-certificate?id=${cert.certificate_id || cert.id}`
+                          });
+                        }}
+                        className="bg-[#122e4c]/80 hover:bg-[#183a62] border border-emerald-500/40 hover:border-emerald-400 rounded-2xl p-4 flex items-center gap-3.5 transition text-left group cursor-pointer shadow-xs hover:shadow-lg hover:-translate-y-0.5"
+                      >
+                        <div className="w-11 h-11 rounded-xl bg-[#0d4a36] text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition shadow-inner">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-emerald-300 group-hover:text-emerald-200 transition truncate">Certificate</div>
+                          <div className="text-[10px] text-emerald-400/80 truncate">Verified & Issued</div>
+                        </div>
+                      </button>
+                    ) : (
+                      <div className="bg-[#122e4c]/50 border border-[#1a3959]/60 rounded-2xl p-4 flex items-center gap-3.5 text-left opacity-80">
+                        <div className="w-11 h-11 rounded-xl bg-[#14283d] text-slate-500 flex items-center justify-center shrink-0">
+                          <Award className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-xs font-bold text-slate-400 truncate">Certificate</div>
+                          <div className="text-[10px] text-slate-500 truncate">Unlocks after tasks</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ========================================================
+                    B. MOBILE VIEW (< lg)
+                    100% Preserved Pixel-Matched Mobile Specification
+                ======================================================== */}
+                <div className="lg:hidden space-y-4">
+                  {/* Top Row: Avatar + Intern Info + 100% Progress Meter */}
+                  <div className="relative z-10 flex items-center justify-between gap-3 sm:gap-4">
+                    {/* Left: Avatar + Details */}
+                    <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                      <div className="relative shrink-0">
+                        <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full border-2 border-white/20 p-0.5 overflow-hidden bg-slate-800 shadow-md">
+                          {renderAvatar("w-full h-full", "text-xl")}
+                        </div>
+                        {profile.full_name !== 'Hariharan S' && (
+                          <span className="absolute bottom-0 right-0 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-[#00c9a7] border-2 border-[#0a1e38] flex items-center justify-center text-white shadow-xs">
+                            <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 space-y-0.5 sm:space-y-1">
+                        <div>
+                          <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider bg-[#153454] text-slate-200 border border-[#214c77] shadow-2xs">
+                            <Sparkles className="w-2.5 h-2.5 text-amber-300 fill-amber-300" />
+                            WELCOME INTERN
+                          </span>
+                        </div>
+
+                        <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight truncate">
+                          {internName}
+                        </h1>
+
+                        <div className="text-xs sm:text-sm font-bold text-[#00b4d8] truncate">
+                          {domainName}
+                        </div>
+
+                        <div className="pt-0.5">
+                          <button
+                            onClick={() => handleCopyId(studentFormattedId)}
+                            className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full text-xs font-mono text-slate-300 bg-[#14324f] hover:bg-[#1a3f65] border border-[#1e4670] transition shadow-2xs cursor-pointer active:scale-95"
+                            title="Click to copy ID"
+                          >
+                            <span>ID: {studentFormattedId}</span>
+                            {copiedId ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
+                          </button>
+                          {copiedId && <span className="ml-1 text-[10px] text-emerald-400 font-bold animate-pulse">Copied!</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Circular Progress Meter */}
+                    <div className="shrink-0 flex items-center justify-center">
+                      <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-[#123352]/90 border border-[#1d466e] p-2 relative flex flex-col items-center justify-center shadow-lg">
+                        <div className="relative w-11 h-11 sm:w-12 sm:h-12 flex items-center justify-center">
+                          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="38"
+                              fill="transparent"
+                              stroke="#16395b"
+                              strokeWidth="9"
+                            />
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="38"
+                              fill="transparent"
+                              stroke="#00e5bc"
+                              strokeWidth="9"
+                              strokeDasharray={gaugeCircumference}
+                              strokeDashoffset={gaugeOffset}
+                              strokeLinecap="round"
+                              className="transition-all duration-1000 ease-out"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-xs sm:text-sm font-black text-white tracking-tight">
+                              {progressPct}%
+                            </span>
+                          </div>
+                        </div>
+                        <span className="text-[7.5px] sm:text-[8px] font-black tracking-widest text-[#00e5bc] uppercase mt-1">
                           PROGRESS
                         </span>
                       </div>
                     </div>
                   </div>
 
+                  {/* Middle Metadata Strip (Enrolled & Duration) */}
+                  <div className="relative z-10 bg-[#0e2942]/90 border border-[#1c456c]/70 rounded-full px-4 py-2.5 flex items-center justify-between text-xs text-slate-300 shadow-inner">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Calendar className="w-4 h-4 text-[#38bdf8] shrink-0" />
+                      <span className="text-[11px] sm:text-xs text-slate-300">Enrolled: <strong className="text-white font-bold">{enrollmentDate}</strong></span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <Clock className="w-4 h-4 text-[#38bdf8] shrink-0" />
+                      <span className="text-[11px] sm:text-xs text-slate-300">Duration: <strong className="text-white font-bold">{durationStr}</strong></span>
+                    </div>
+                  </div>
+
+                  {/* 4 Quick-Action Tiles Grid: View Offer, Offer Letter, ID Card, Locked/Certificate */}
+                  <div className="relative z-10 grid grid-cols-4 gap-2 sm:gap-3 pt-0.5">
+                    <button
+                      onClick={() => {
+                        setSelectedOfferLetter(offerLettersList[0] || null);
+                        setShowOfferLetterModal(true);
+                      }}
+                      className="bg-[#122e4c]/80 hover:bg-[#1a3d64] border border-[#1c456c]/70 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center gap-1.5 transition text-center group cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#1b3e66] text-[#38bdf8] flex items-center justify-center group-hover:scale-105 transition shadow-inner">
+                        <Eye className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-100 leading-tight">View Offer</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const ol = offerLettersList[0];
+                        handleDownloadOfferLetter({
+                          fullName: ol?.student_name || internName,
+                          internId: ol?.internship_id || ol?.intern_id || studentFormattedId,
+                          domain: ol?.domain || domainName,
+                          issuedAt: ol?.issue_date || enrollmentDate,
+                          duration: ol?.duration || durationStr
+                        });
+                      }}
+                      className="bg-[#122e4c]/80 hover:bg-[#1a3d64] border border-[#1c456c]/70 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center gap-1.5 transition text-center group cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#1b3e66] text-[#38bdf8] flex items-center justify-center group-hover:scale-105 transition shadow-inner">
+                        <Download className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-100 leading-tight">Offer Letter</span>
+                    </button>
+
+                    <button
+                      onClick={() => setShowIdCardModal(true)}
+                      className="bg-[#122e4c]/80 hover:bg-[#1a3d64] border border-[#1c456c]/70 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center gap-1.5 transition text-center group cursor-pointer shadow-xs active:scale-95"
+                    >
+                      <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0d4554] text-[#00d2b4] flex items-center justify-center group-hover:scale-105 transition shadow-inner">
+                        <Download className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                      </div>
+                      <span className="text-[10px] sm:text-xs font-bold text-slate-100 leading-tight">ID Card</span>
+                    </button>
+
+                    {certificatesList && certificatesList.length > 0 ? (
+                      <button
+                        onClick={() => {
+                          const cert = certificatesList[0];
+                          handleDownloadCertificate({
+                            fullName: cert.student_name || internName,
+                            internId: cert.internship_id || cert.intern_id || studentFormattedId,
+                            domain: cert.domain || domainName,
+                            certId: cert.certificate_id || cert.id,
+                            issuedAt: cert.issue_date || enrollmentDate,
+                            verifyUrl: `https://skyrovix.online/verify-certificate?id=${cert.certificate_id || cert.id}`
+                          });
+                        }}
+                        className="bg-[#122e4c]/80 hover:bg-[#1a3d64] border border-emerald-500/40 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center gap-1.5 transition text-center group cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0d4a36] text-emerald-400 flex items-center justify-center group-hover:scale-105 transition shadow-inner">
+                          <Award className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold text-emerald-300 leading-tight">Certificate</span>
+                      </button>
+                    ) : (
+                      <div className="bg-[#122e4c]/50 border border-[#1a3959]/60 rounded-2xl p-2 sm:p-2.5 flex flex-col items-center justify-center gap-1.5 text-center">
+                        <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#14283d] text-slate-500 flex items-center justify-center">
+                          <Award className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                        </div>
+                        <span className="text-[10px] sm:text-xs font-bold text-slate-400 leading-tight">Locked</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Row: WhatsApp Group & Instagram buttons */}
+                  <div className="relative z-10 grid grid-cols-2 gap-3 pt-1">
+                    <a
+                      href={internshipData?.whatsapp_url || 'https://chat.whatsapp.com/BIE2gLWrWtb9AGYpL9o2yP'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-3 px-4 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95"
+                    >
+                      <WhatsAppIcon className="w-4 h-4 sm:w-5 sm:h-5 fill-white shrink-0" />
+                      <span className="truncate">WhatsApp Group</span>
+                    </a>
+
+                    <a
+                      href="https://www.instagram.com/skyrovix"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-3 px-4 rounded-full bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] hover:opacity-95 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md transition active:scale-95"
+                    >
+                      <InstagramIcon className="w-4 h-4 sm:w-5 sm:h-5 fill-white shrink-0" />
+                      <span className="truncate">Instagram</span>
+                    </a>
+                  </div>
                 </div>
               </section>
 
-              {/* 2. Student Guide Quick Hub */}
-              <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-xs relative overflow-hidden">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              {/* 2. Three Metric Summary Cards (Immediately below Hero Card) */}
+              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <div className="w-9 h-9 rounded-full bg-[#e6f9f0] text-[#00b074] flex items-center justify-center shadow-xs">
+                      <Check className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <span className="bg-[#00a86b] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
+                      COMPLETED TASKS
+                    </span>
+                  </div>
+                  <div className="mt-5 space-y-0.5">
+                    <div className="text-3xl font-black text-slate-900 tracking-tight">
+                      {completedTasksCount} / {totalTasksCount}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Approved Deliverables
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition">
+                  <div className="flex items-center justify-between">
+                    <div className="w-9 h-9 rounded-full bg-amber-50 text-[#ff8c00] flex items-center justify-center shadow-xs">
+                      <Clock className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <span className="bg-[#ff8c00] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
+                      SUBMITTED TASKS
+                    </span>
+                  </div>
+                  <div className="mt-5 space-y-0.5">
+                    <div className="text-3xl font-black text-slate-900 tracking-tight">
+                      {submittedTasksCount}
+                    </div>
+                    <div className="text-xs font-semibold text-slate-500">
+                      Pending Review
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition sm:col-span-2 lg:col-span-1">
+                  <div className="flex items-center justify-between">
+                    <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
+                      <Award className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <span className="bg-emerald-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
+                      CERTIFICATE STATUS
+                    </span>
+                  </div>
+                  <div className="mt-5 space-y-0.5">
+                    <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
+                      {completedTasksCount === totalTasksCount && totalTasksCount > 0 ? (certificatesList[0]?.id || 'SKY-B1-9055-CERT') : 'Pending Tasks'}
+                    </div>
+                    <div className={`text-xs font-semibold ${completedTasksCount === totalTasksCount && totalTasksCount > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
+                      {completedTasksCount === totalTasksCount && totalTasksCount > 0 ? 'Verified & Active' : `${completedTasksCount} of ${totalTasksCount} Approved`}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* 3. Student Guide Quick Hub */}
+              <section className="bg-white rounded-3xl p-5 sm:p-7 border border-slate-200/90 shadow-xs relative overflow-hidden">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
                   <div className="flex items-start gap-4">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md">
-                      <BookOpen className="w-7 h-7" />
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-700 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <BookOpen className="w-6 h-6 sm:w-7 sm:h-7" />
                     </div>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -1485,66 +1823,6 @@ export const StudentDashboard = ({ studentId, onLogout, onVerifyCert, onTriggerP
                       <CheckSquare className="w-4 h-4 text-sky-600" />
                       <span>Assigned Projects</span>
                     </button>
-                  </div>
-                </div>
-              </section>
-
-              {/* 3. Three Metric Summary Cards */}
-              <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition">
-                  <div className="flex items-center justify-between">
-                    <div className="w-9 h-9 rounded-full bg-[#e6f9f0] text-[#00b074] flex items-center justify-center shadow-xs">
-                      <Check className="w-5 h-5 stroke-[2.5]" />
-                    </div>
-                    <span className="bg-[#00a86b] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
-                      COMPLETED TASKS
-                    </span>
-                  </div>
-                  <div className="mt-5 space-y-0.5">
-                    <div className="text-3xl font-black text-slate-900 tracking-tight">
-                      {completedTasksCount} / {totalTasksCount}
-                    </div>
-                    <div className="text-xs font-semibold text-slate-500">
-                      Approved Deliverables
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition">
-                  <div className="flex items-center justify-between">
-                    <div className="w-9 h-9 rounded-full bg-amber-50 text-[#ff8c00] flex items-center justify-center shadow-xs">
-                      <Clock className="w-5 h-5 stroke-[2.5]" />
-                    </div>
-                    <span className="bg-[#ff8c00] text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
-                      SUBMITTED TASKS
-                    </span>
-                  </div>
-                  <div className="mt-5 space-y-0.5">
-                    <div className="text-3xl font-black text-slate-900 tracking-tight">
-                      {submittedTasksCount}
-                    </div>
-                    <div className="text-xs font-semibold text-slate-500">
-                      Pending Review
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-[0_2px_12px_rgba(0,0,0,0.03)] flex flex-col justify-between hover:shadow-md transition">
-                  <div className="flex items-center justify-between">
-                    <div className="w-9 h-9 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-xs">
-                      <Award className="w-5 h-5 stroke-[2.5]" />
-                    </div>
-                    <span className="bg-emerald-600 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full tracking-wider shadow-2xs">
-                      CERTIFICATE STATUS
-                    </span>
-                  </div>
-                  <div className="mt-5 space-y-0.5">
-                    <div className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight truncate">
-                      {completedTasksCount === totalTasksCount && totalTasksCount > 0 ? (certificatesList[0]?.id || 'SKY-B1-9055-CERT') : 'Pending Tasks'}
-                    </div>
-                    <div className={`text-xs font-semibold ${completedTasksCount === totalTasksCount && totalTasksCount > 0 ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {completedTasksCount === totalTasksCount && totalTasksCount > 0 ? 'Verified & Active' : `${completedTasksCount} of ${totalTasksCount} Approved`}
-                    </div>
                   </div>
                 </div>
               </section>

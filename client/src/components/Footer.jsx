@@ -49,13 +49,13 @@ export const Footer = ({ onOpenApply, onOpenDashboard, onOpenLogin, onOpenAdmin,
               <button
                 onClick={onOpenApply}
                 id="footer-apply-btn"
-                className="w-full sm:w-auto px-8 py-4 text-white font-extrabold text-sm rounded-[20px] shadow-lg transition-all cursor-pointer"
+                className="w-full sm:w-auto px-8 py-4 text-white font-extrabold text-sm rounded-[20px] shadow-lg transition-all cursor-pointer whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, #087FC1, #2447B8)',
                   boxShadow: '0 10px 25px rgba(8,127,193,0.30)'
                 }}
               >
-                APPLY FOR BATCH 1 (₹200)
+                <span className="whitespace-nowrap">APPLY FOR BATCH 1 (₹200)</span>
               </button>
             </MagneticButton>
             <MagneticButton>

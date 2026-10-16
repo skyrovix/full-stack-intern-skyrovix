@@ -188,13 +188,13 @@ export const WhatStudentsLearn = ({ onOpenApply }) => {
             <MagneticButton>
               <button
                 onClick={onOpenApply}
-                className="inline-flex items-center gap-2 text-sm font-extrabold text-white px-7 py-3.5 rounded-[20px] shadow-lg transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 text-sm font-extrabold text-white px-7 py-3.5 rounded-[20px] shadow-lg transition-all cursor-pointer whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, #087FC1, #2447B8)',
                   boxShadow: '0 10px 25px rgba(8,127,193,0.25)'
                 }}
               >
-                <span>Apply for Batch 1 (Registration: ₹200)</span>
+                <span className="whitespace-nowrap">Apply for Batch 1 (Registration: ₹200)</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </MagneticButton>

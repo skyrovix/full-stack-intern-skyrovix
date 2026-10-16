@@ -504,11 +504,11 @@ export const RegistrationForm = ({
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
                 Current Technical Skill Level <span className="text-rose-500">*</span>
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 sm:gap-3">
                 {['Beginner', 'Intermediate', 'Advanced'].map((level) => (
                   <label
                     key={level}
-                    className={`flex flex-col items-center justify-center p-3.5 rounded-xl border cursor-pointer transition-all ${
+                    className={`flex sm:flex-col items-center sm:justify-center justify-between p-3 sm:p-3.5 rounded-xl border cursor-pointer transition-all ${
                       formData.skillLevel === level
                         ? 'bg-sky-50 border-sky-600 text-sky-950 font-bold ring-2 ring-sky-200 shadow-sm'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -523,7 +523,7 @@ export const RegistrationForm = ({
                       className="sr-only"
                     />
                     <span className="text-xs font-bold">{level}</span>
-                    <span className="text-[10px] text-slate-500 mt-0.5">
+                    <span className="text-[11px] sm:text-[10px] text-slate-500 mt-0 sm:mt-0.5">
                       {level === 'Beginner' ? 'New to web dev' : level === 'Intermediate' ? 'Built simple apps' : 'Know JS/React'}
                     </span>
                   </label>

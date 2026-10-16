@@ -331,16 +331,16 @@ export const Hero = ({ onOpenApply, onOpenGuide, whatsappUrl }) => {
             >
               <button
                 id="hero-apply-btn"
-                className="w-full sm:w-auto min-w-[280px] sm:min-w-[300px] h-[58px] inline-flex items-center justify-center gap-2.5 px-7 rounded-[20px] text-sm sm:text-base font-extrabold text-white cursor-pointer shadow-[0_15px_35px_rgba(8,127,193,0.22)] hover:shadow-[0_20px_45px_rgba(8,127,193,0.35)] transition-all hover:-translate-y-0.5 active:translate-y-0"
+                className="w-full sm:w-auto min-w-0 sm:min-w-[300px] h-[54px] sm:h-[58px] inline-flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-7 rounded-[20px] text-xs sm:text-base font-extrabold text-white cursor-pointer shadow-[0_15px_35px_rgba(8,127,193,0.22)] hover:shadow-[0_20px_45px_rgba(8,127,193,0.35)] transition-all hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, #087FC1, #2447B8)'
                 }}
               >
-                <span>APPLY FOR BATCH 1</span>
-                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-white/20 text-white border border-white/30">
+                <span className="whitespace-nowrap">APPLY FOR BATCH 1</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-black bg-white/20 text-white border border-white/30 shrink-0 whitespace-nowrap">
                   ₹200
                 </span>
-                <ArrowRight className="w-5 h-5 ml-0.5" />
+                <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 ml-0.5 shrink-0" />
               </button>
             </MagneticButton>
 
@@ -351,10 +351,10 @@ export const Hero = ({ onOpenApply, onOpenGuide, whatsappUrl }) => {
                 target="_blank"
                 rel="noopener noreferrer"
                 id="hero-whatsapp-btn"
-                className="w-full sm:w-auto min-w-[240px] h-[58px] inline-flex items-center justify-center gap-2.5 px-6 rounded-[20px] text-sm sm:text-base font-extrabold text-[#123F35] bg-[#ECFFF8] hover:bg-[#d8fced] border border-[#35D39A] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0"
+                className="w-full sm:w-auto min-w-0 sm:min-w-[240px] h-[54px] sm:h-[58px] inline-flex items-center justify-center gap-2 sm:gap-2.5 px-4 sm:px-6 rounded-[20px] text-xs sm:text-base font-extrabold text-[#123F35] bg-[#ECFFF8] hover:bg-[#d8fced] border border-[#35D39A] shadow-xs cursor-pointer transition-all hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap"
               >
-                <WhatsAppIcon className="w-5 h-5 text-[#25D366]" />
-                <span>JOIN WHATSAPP GROUP</span>
+                <WhatsAppIcon className="w-4 sm:w-5 h-4 sm:h-5 text-[#25D366] shrink-0" />
+                <span className="whitespace-nowrap">JOIN WHATSAPP GROUP</span>
               </a>
             </MagneticButton>
           </div>

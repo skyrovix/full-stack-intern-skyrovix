@@ -301,9 +301,9 @@ export const ProjectShowcase = ({ onOpenApply }) => {
           </p>
           <button
             onClick={onOpenApply}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-bold text-sm shadow transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-sky-600 to-blue-700 hover:from-sky-700 hover:to-blue-800 text-white font-bold text-sm shadow transition-all whitespace-nowrap"
           >
-            <span>APPLY FOR BATCH 1 (₹200)</span>
+            <span className="whitespace-nowrap">APPLY FOR BATCH 1 (₹200)</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

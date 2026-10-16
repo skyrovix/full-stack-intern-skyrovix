@@ -189,12 +189,12 @@ export const ProgramOverview = ({ onOpenApply }) => {
           <MagneticButton>
             <button
               onClick={onOpenApply}
-              className="shrink-0 px-6 py-4 rounded-[20px] text-white text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 shadow-[0_10px_25px_rgba(8,127,193,0.30)] hover:shadow-[0_15px_35px_rgba(8,127,193,0.45)]"
+              className="shrink-0 px-6 py-4 rounded-[20px] text-white text-sm font-extrabold transition-all cursor-pointer flex items-center gap-2 shadow-[0_10px_25px_rgba(8,127,193,0.30)] hover:shadow-[0_15px_35px_rgba(8,127,193,0.45)] whitespace-nowrap"
               style={{
                 background: 'linear-gradient(135deg, #087FC1, #2447B8)'
               }}
             >
-              <span>Apply for Batch 1</span>
+              <span className="whitespace-nowrap">Apply for Batch 1</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </MagneticButton>
